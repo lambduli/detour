@@ -1,0 +1,81 @@
+theorem modus-ponens: A, A ==> B ⊢ B .
+_ : | a: A
+    | a->b: A ==> B
+    |-----------------------------
+    |
+    | b: B  by ==>-elim on a->b, a
+    |
+    B by b
+
+
+-- the final derivation can be named
+theorem modus-ponens':  A, A ==> B ⊢ B .
+_ : | a: A
+    | a->b: A ==> B
+    |-----------------------------
+    |
+    | b: B  by ==>-elim on a->b, a
+    |
+    _ : B by b
+
+
+
+theorem compose:  A ==> B, B ==> C ⊢ A ==> C .
+_ : | a->b: A ==> B
+    | b->c: B ==> C
+    |-------------------------------------
+    |
+    | X : | a: A
+    |     |-----------------------------
+    |     | b: B  by ==>-elim on a->b, a
+    |     | c: C  by ==>-elim on b->c, b
+    |
+    | a->c: A ==> C by ==>-intro on X, c
+    A ==> C by a->c
+
+
+-- alternatively, more concise
+theorem compose': A ==> B, B ==> C ⊢ A ==> C .
+_ : | a->b: A ==> B
+    | b->c: B ==> C
+    |-------------------------------------
+    |
+    | _ : | a: A
+    |     |-----------------------------
+    |     | b: B  by ==>-elim on a->b, a
+    |     | c: C  by ==>-elim on b->c, b
+    |
+-- the last sub-proof doesn't need to be named
+-- the last sub-proof carries over
+
+
+-- alternatively, maybe even without names
+theorem compose'':  A ==> B, B ==> C ⊢ A ==> C .
+| a->b: A ==> B
+| b->c: B ==> C
+|-------------------------------
+|
+| | a: A
+| |-----------------------------
+| | b: B  by ==>-elim on a->b, a
+| | c: C  by ==>-elim on b->c, b
+|
+
+
+-- there's also the question of whether to allow the following:
+theorem compose''': A ==> B, B ==> C ⊢ A ==> C .
+| a->b: A ==> B
+| b->c: B ==> C
+|-------------------------------
+|
+  | a: A
+  |-----------------------------
+  | b: B  by ==>-elim on a->b, a
+  | c: C  by ==>-elim on b->c, b
+
+-- this would require a different approach
+-- tracking a position of the last | character would tell us
+-- whether we are still in the same scope or a new one or we've left some
+-- in such a case it would make sense to strictly require that those pipes
+-- make a straight line, always
+-- this could totally work

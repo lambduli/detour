@@ -1,0 +1,110 @@
+constants: Zero, Suc, True, False, Nothing, Just, Maybe .
+
+
+-- no self-reference is allowed, no inductive types, no mutually-inductive types either
+-- essentially, only potentially parametric enumerations
+syntax:
+
+Boolean :=  True
+        |   False
+
+
+Maybe-Boolean :=  Nothing
+              |   Just Boolean
+
+
+
+rule Maybe:
+
+is-nothing: Maybe(Nothing)
+
+is-just:  Maybe(Just(a))
+
+-- What would we use such rules for?
+-- Maybe to reason about terms composed of optional values? Maybe.
+
+
+
+
+rule tautology:
+
+true: ⊤
+
+
+rule is-nat:
+
+-- this is one way to put it
+nat-zero: |
+          |------------
+          | Nat(Zero)
+
+
+-- we could also allow to just have "axioms"
+nat-zero':  Nat(Zero)
+
+
+-- or we could write it something like this:
+nat-zero'': |
+            |--------
+            |
+            Nat(Zero)
+-- actually, I don't think this is OK
+-- a rule (or an axiom) should be ONE derivation
+-- there are two things, actually
+-- the line Nat(Zero) is another derivation, trivial, but still
+-- so the nat-zero'' is not a thing, it seems
+
+
+-- and also the successor case:
+nat-suc:  | Nat(n)
+          |-------------
+          | Nat(Suc(n))
+
+
+-- we can use the nat-zero as follows:
+  .
+  .
+  .
+x: ⊤ ==> Nat(Zero)  by ==>-intro on nat-zero
+y: Nat(Zero)        by ==>-elim on x, true
+
+
+-- or we can use it directly:
+
+  .
+  .
+  .
+y: Nat(Zero)  by rule nat-zero
+
+-- I guess this means that those two notions are equivalent.
+-- I would also write by rule nat-zero'.
+-- So I guess that means that the "lineless" notation is just a syntax sugar.
+
+-- It also raises the following question.
+-- If I have something like this:
+
+rule foo:
+
+foo-1:  | a: A
+        | b: B
+        | c: C
+        |------
+        | _: A ∧ B  by ∧-intro on a, b
+        | _: B ∧ C  by ∧-intro on b, c
+
+-- now, is is possible to do this?
+
+  .
+  .
+  .
+m: M  by ...
+n: N  by ...
+o: O  by ...
+
+m∧n: M ∧ N  by rule foo-1 on m, n, o
+n∧o: N ∧ O  by rule foo-1 on m, n, o
+
+-- this is something that would not make much sense, or would not be nicely
+-- expressible in the usual natural deduction notation
+-- but it kinda makes sense in this sort of notation
+-- I should definitely think about this, it could be a neat thing.
