@@ -23,5 +23,4 @@ data Rule = Impl'Intro
           | Exists'Elimination
           | Repetition
           | Custom String -- user-defined rules
-          | Tautology -- if I would want to eliminate implication that is in the shape ⊤ ==> A, I don't really need to justify ⊤, its justification is always in scope
   deriving (Show, Eq)
