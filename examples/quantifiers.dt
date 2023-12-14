@@ -1,0 +1,41 @@
+
+
+theorem foo:  ∀ a P(a) ==> K(a) ⊢ ∃ x P(x) ==> K(x).
+
+
+-- what does the assumption look like?
+-- does assuming a new variable for future ∀ and ∃ look the same?
+
+theorem ∃-human->mortal : ∀x human(x) ==> mortal(x)
+                        , ∃y human(y)
+                        ⊢ ∃z mortal(z) .
+_ : | human->mortal : ∀x human(x) ==> mortal(x)
+    | ∃-human : ∃y human(y)
+    |--------------------------------------------
+    |
+    | p:  | h: human(a) for some a
+    |     |-------------------------
+    |     |
+    |     | human-a=>mortal-a : human(a) ==> mortal(a)  by ∀-elim on human->mortal, a
+    |     | mortal-a  : ==>-elim on human-a=>mortal-a, h
+    |     | mortal-z  : ∃ z mortal(z) by ∃-intro mortal-a, a
+    |
+    | mortal-z  : ∃ z mortal(z) by ∃-intro on ∃-human, p
+
+
+
+theorem test-universal: ∀ x P(x) ==> G(x)
+                      , ∀ y P(y)
+                      ⊢ ∀ z G(z) .
+_:  | p1: ∀ x P(x) ==> G(x)
+    | p2: ∀ y P(y)
+    |------------------------------
+    |
+    | _ : | any/all/every a, b, c
+    |     |------------------------
+    |     |
+    |     | 
+    |     |
+    |     |
+    |     |
+    |     |

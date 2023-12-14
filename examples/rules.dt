@@ -1,0 +1,11 @@
+
+
+rule eq:
+
+eq-not-and: ¬(A ∧ B) ≡ ¬A ∨ ¬B
+
+
+
+
+x: ¬(A ∧ B) by ...
+y: ¬(A ∧ B) ≡ ¬A ∨ ¬B 
