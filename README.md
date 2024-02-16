@@ -111,3 +111,5 @@ According the AI this might still be problematic: `∀ x Nat(x) => Foo(x)`.
 I think the last part is talking about the impact on `Foo`.
 
 In any case, I need to read more on this.
+
+(More of the brainstorm with the AI at https://gemini.google.com/app/f0ea08f6daf73324)
