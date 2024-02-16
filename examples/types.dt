@@ -1,0 +1,290 @@
+module Naturals
+
+
+constants: S, Z
+
+
+syntax:
+
+inductive ℕ, Nat, N, M  = Z       @base       -- annotations for induction
+                        | S(ℕ)    @inductive  -- annotations for induction
+
+-- I am thinking maybe introducing these annotations would make
+-- it easier to implement the checking?
+
+
+
+judgment Sum( ℕ , ℕ , ℕ ) where
+
+
+----------------- sum-z @base
+Sum( Z , ℕ , ℕ )
+
+
+Sum( ℕ₁ , ℕ₂ , ℕ₃ )
+-------------------------- sum-s  @inductive
+Sum( S(ℕ₁) , ℕ₂ , S(ℕ₃) )
+
+
+
+
+
+// theorem totality : 	forall n1
+// 										forall n2
+// 										exists n1 + n2 = n3
+// 
+// proof by induction on n1:
+//   case Z is
+// 		proof by rule sum-z
+// 	end case
+// 
+// 	case S n' is
+// 		p': n' + n2 = n3' by induction hypothesis on n', n2
+// 
+// 		_: (S n') + n2 = (S n3') by rule sum-s on p'
+// 
+// 	end case
+// end induction
+// end theorem
+
+
+-- How to deal with proofs by inductions?
+-- The proof must do case analysis (must deal with every constructor).
+-- For the "constructors" that are "recursive", the proof can assume that
+-- the proposition holds for all the values in the constructor (if of the same type). [induction hypothesis]
+-- 
+-- Question—what if the constructor keeps a value of some other inductive type?
+-- Well, if I don't need them for the proof, that makes them irrelevant.
+-- If I need those for the proof I suppose I could use them.
+-- 
+-- This raises another questions—are nested inductions permitted?
+-- 
+-- If I think about it in terms of recursion on values of inductive types.
+-- If I call the recursive function on a smaller instance each time, I am fine.
+--
+-- The question then is—what constitutes "an instance" and then "smaller instance".
+-- 
+
+
+theorem totality :  ∀ ℕ₁ ∀ ℕ₂ ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ )
+proof by induction and case analysis on ℕ₁:
+  -- proof for all base cases
+  -- proof for all inductive cases
+  --    for all the values kept by each inductive constructor with the type ℕ
+  --    I can assume that the the proposition holds.
+
+  base case Z is
+		proof by rule sum-z
+	end case
+
+	inductive case S(ℕ') is
+
+    -- so this should mean that the following holds:
+    --    ∀ ℕ₂ ∃ Sum( ℕ' , ℕ₂ , ℕ₃ )
+
+		p': Sum( ℕ' , n2 , n3' ) by induction hypothesis on M, ℕ₂
+
+    --    It seems to me that when we do case analysis we do induction and case analysis on the identifier the position of it is important.
+    --    We need to note which one in the original proposition it is.
+    --    When we want to use the induction hypothesis, we can only plug the smaller-instance in that specific place.
+
+    -- I think I now see how that seem to correspond to what I needed to do to support induction in resin.
+    -- Induction is an axiom that holds for unary predicates.
+    -- We make our original proposition into a unary predicate by designating which one is the "inductive" parameter for which
+    -- the inductive axiom holds.
+    -- This sort of reshapes the problem into:
+    -- ∀ ℕ₂ { [ ∃ ℕ₃ Sum( Z , ℕ₂ , ℕ₃ ) ]
+              ∧
+              ∀ ℕ' [ ∃ ℕ₃ Sum( ℕ' , ℕ₂ , ℕ₃ ) ==> ∃ ℕ₃ Sum( S( ℕ' , ℕ₂ , ℕ₃ ) ) ]
+              
+              ==> ∀ ℕ₁ ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ ) }
+    --
+    -- The unary proposion P(N₁) is   ∀ ℕ₁ ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ )
+    -- for the base case—P(Z)—it will become   ∃ ℕ₃ Sum( Z , ℕ₂ , ℕ₃ ).
+    -- 
+    -- If we prove the above, proving the original theorem  ∀ ℕ₁ ∀ ℕ₂ ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ )
+    -- is possible and should be straightforward. (I hope?)
+    --
+    -- So how would we prove the above?
+    -- We would assume some universal variable ℕ₂ with the intention to never unify it with anything (specific) and eventually use it with ∀-intro.
+    -- In the scope of that assumption, we would invoke inductive reasoning/proof by induction.
+    -- We would state what proposition exactly we want to prove by it.
+    -- That would be the proposition    ∀ ℕ₁ ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ ).
+    -- The induction then, would require case analysis on the ℕ₁.
+    -- It would require us to prove the conjunction of all the base cases and all the inductive cases.
+    -- There are only two—one base case and one inductive case.
+    -- So the case analysis would require handling the following proofs:
+    --    base case:  proof of  ∃ ℕ₃ Sum( Z , ℕ₂ , ℕ₃ )
+    --                This is trivial in the fitch-nat framework. The justification is ∃-intro over Sum( Z , ℕ₂ , ℕ₂ ) which, in turn, is justified by the rule sum-z.
+    --                The fact that ℕ₂ and ℕ₃ are unified by the rule sum-z should not be a problem. I assume that the well-formedness checker will not flag this.
+    --
+    --    inductive case:   proof of  ∀ ℕ' [ ∃ ℕ₃ Sum( ℕ' , ℕ₂ , ℕ₃ ) ==> ∃ ℕ₃ Sum( S( ℕ' , ℕ₂ , ℕ₃ ) ) ]
+    --                      I need to assume a ℕ' (and never unify it with anything specific).
+    --                      Then I need to prove the implication.
+    --                      I think this should be straightforward:
+    --                        I start a new sub-proof and assume the  ∃ ℕ₃ Sum( ℕ' , ℕ₂ , ℕ₃ ).
+    --                        I eliminate the ∃ ℕ₃ and introduce new constant.
+    --                        I get   Sum( ℕ' , ℕ₂ , N₃ ).
+    --                        I use the rule sum-s and get  Sum( S( S(ℕ') , ℕ₂ , S(N₃) ) ).
+    --                        I use ∃-intro on it and specify that I want to abstract over S(N₃) getting  ∃ ℕ₃ Sum( S( ℕ' , ℕ₂ , ℕ₃ ) ).
+    --                        I use ==>-intro on the sub-proof getting the implication.
+    --                      I use ∀-intro on the the ℕ' and the implication. The ℕ' is not unified with anything (specific) so it should be fine.
+    -- Only now we would use the proof-by-induction over _.
+    -- It would be, probably, a rule. It would require all the parts of the conjuction handled.
+    -- We would use ∧-intro (obviously).
+    -- On the result, we would use induction.
+    -- The induction would check that all the cases are handled.
+    -- That the base cases are handled. Base case a correct instance of the proposition we are trying to prove.
+    -- That the inductive cases are handled. Inductive case is a correct instance of the ...
+    -- This serves as a justification for the following proposition   ∀ ℕ₁ ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ ).
+    -- Now I only generalize/∀-intro over ℕ₂. That should be fine as ℕ₂ was not unified with anything specific.
+    -- I get the proposition that I need. That is:
+    --     ∀ ℕ₂ { [ ∃ ℕ₃ Sum( Z , ℕ₂ , ℕ₃ ) ]
+    --            ∧
+    --            ∀ ℕ' [ ∃ ℕ₃ Sum( ℕ' , ℕ₂ , ℕ₃ ) ==> ∃ ℕ₃ Sum( S( ℕ' , ℕ₂ , ℕ₃ ) ) ]
+    --            
+    --            ==> ∀ ℕ₁ ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ ) }
+    --
+    -- Now I only need to prove   ∀ ℕ₁ ∀ ℕ₂ ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ ).
+    -- Wait! Insted of proving the whole thing above I can take the proposition justified by induction, that is ∀ ℕ₁ ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ )
+    -- and generalize over ℕ₂ now. Yes, that's how the inductive reasoning is supposed to be used.
+    -- I only need to reorder the ∀s. I can either have the built-in in the engine or I can instantiate the result from the induction and then re-generalize in the correct order.
+    -- That should give me the proof that I am looking for. And all the reasoning seems small, digestible, reasonable and not fuzzy.
+    -- I completely avoid the need, as an implementor, to reason about when can an when can not induction be done.
+    -- I only need to make sure that my by-induction justification/rule check some seemingly basic conditions. I like that.
+    --
+    -- Now the question is—is this the sort-of "canonical" approach or is there a proof looking more like the one taken from the SASyLF module?
+    -- Or what I probably mean by that—is there a direct mapping from this approach to the more readable one from Elf?
+    -- If there would be a mapping I could create a syntax sugar in the form similar to the of SASyLFs and have a pretty proof.
+    -- I need to check that.
+
+
+		_: (S n') + n2 = (S n3') by rule sum-s on p'
+
+	end case
+end induction
+end theorem
+
+
+__ Here's something to think about from Agda.
+
+data _≠_ : ℕ -> ℕ -> Set where
+
+-- I understand that this constructor is technically fine.
+  z≠n : ∀ {n : ℕ}
+
+    --------------
+    → zero ≠ n
+
+
+-- This is weird right?
+-- But how would Agda know that we shouldn't do that?
+-- Relatively speaking, this is totally fine.
+  m≠n' : ∀ {m n : ℕ}
+
+    --------------
+    → m ≠ n
+
+-- How is this constructor legal?
+-- The premise is larger than the conclusion!
+-- Is there even a way to extract that smaller proof from the larger proof?
+-- I don't even think so.
+-- But that's not what this is about.
+-- This is about having a numbers like 7 and 8, getting a proof of `7 ≠ 8`
+-- and getting a proof of `6 ≠ 7` from that.
+-- I mean, on its own, this is fine, I guess.
+-- What I mean is, why not, right?
+-- Agda can't really tell that this shouldn't make sense, I think.
+-- I kinda feel like it should be able to, though.
+-- On the other hand, I can write a function that takes a proof of `1 + m ≠ 1 + n`
+-- and produces a proof of the type `m ≠ n` even for the correct notion of ≠ proposition.
+-- And if that type is fine for a function (theorem) it should be fine for a constructor (rule schema)
+-- I guess?
+-- It just weirds me out that I can have a proper inductive naturals
+-- and then go and define a relation that is clearly silly.
+-- 
+-- Is it possible, that if there isn't any other weird constructor
+-- this would not really cause any issues?
+-- Because I wouldn't really be able to construct a proof of any number being equal of any other number.
+-- And because of that, I wouldn't be able to construct a proof of smaller numbers being equal.
+-- So in that sense, the constructor that would allow me to construct a proof of any two numbers
+-- being equal would be a problem.
+--
+-- 
+  s≠s : ∀ {m n : ℕ}
+    → suc m ≠ suc n
+      -------------
+    → m ≠ n
+
+-- How is this constructor legal?
+-- The conclusion is the exact same as the premise!
+-- I mean it kinda makes sense, if you give me a thing that is a proof of `m ≠ n` I can
+-- construct a proof of `m ≠ n` just fine. It isn't exact, but, I guess?
+  m≠n : ∀ {m n : ℕ}
+    -> m ≠ n
+    ---------------
+    -> m ≠ n
+
+
+-- How is this a legal type?
+data WeirdNat : Set where
+  badsucc : WeirdNat -> WeirdNat
+
+
+
+
+
+
+
+
+
+--- And a little bit more:
+
+data No : Set where
+  N : No
+
+
+data _=>_ : Set -> Set -> Set where
+  m=>n : ∀ (m : Set) -> ∀ (n : Set) -> m => n
+
+mutual
+
+  data Bad : Set where
+    ok1 : (Bad -> (Bad -> Bad))
+    
+    -- bad1 : Bad -> (Bad -> Bad) -> Bad
+    --                ^^^
+    ok2 : Bad -> (No -> Bad) -> Bad
+
+    bad2 : (No -> (No -> Bad)) -> (No -> Bad) -> Bad
+
+    -- bad3 : (Bad => Bad) -> Bad -> Bad
+            -- ^^^
+
+    -- bad4 : (No => Bad) -> Bad -> Bad
+    --               ^^^
+
+    ok3 : (No => No -> Bad) -> Bad -> Bad
+
+    -- bad5 : (No -> No -> (No -> Bad) -> Bad) -> Bad -> Bad
+    --                            ^^^
+
+    ok4 : Worse -> Bad -> Bad
+
+    ok6 : Bad -> Worse -> Bad
+
+    -- bad6 : (Worse -> Bad) -> Worse -> Bad
+    --         ^^^^^
+
+    ok7 : (No -> Worse) -> Worse -> Bad
+
+  data Worse : Set where
+    ok5 : Bad -> Bad -> Worse
+
+    -- not'ok1 : (Bad -> Worse) -> Worse
+    --            ^^^
+
+    ok6 : (No -> Bad) -> (No -> Worse) -> Worse
+
+
+-- I guess all of this makes sense.

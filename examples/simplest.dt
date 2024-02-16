@@ -1,0 +1,6 @@
+module Simplest
+
+theorem simplest : ⊤
+_ : ⊤  by rule ⊤-intro  -- maybe I can make it so that ⊤ doesn't require justification?
+
+-- Does this means that the proof, syntactically, can be a list of Derivations?

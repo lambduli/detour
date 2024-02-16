@@ -1,0 +1,121 @@
+module Nats
+
+
+constants: S, Z
+
+
+syntax:
+
+inductive ℕ, Nat, N, M  = Z
+                        | S(ℕ)
+
+-- This should amount to defining something like the following:
+inductive ℕ, Nat, N, M where
+  axiom nat-z : ℕ(Z)
+  axiom nat-s : ∀ n ℕ(n) => ℕ(S(n))
+
+-- I think.
+-- There's tha added benefit of induction.
+-- It also seems that checking the above definition will be a bit easier?
+
+-- When I define some relation inductively, no other axiom can produce it.
+-- There must not be any axioms that would imply ℕ for anything. I think.
+-- This I remember from the paper about inversion.
+-- And for the induction to work, there must not be any axiom that would assert
+-- that some n is ℕ(n) aside from those two axioms.
+-- Maybe I will prohibit any axioms mentioning the ℕ altogether? Can I do that?
+
+-- I don't think I can. I wouldn't be able to write this:
+
+axiom sum-z' :  |
+                |---------------------------
+                | ∀ n ℕ(n) => Sum(Z, ℕ, ℕ)
+
+-- That would not be good.
+-- So I will need to think about this more.
+-- The issue is, how do I look at an axiom (or a rule, later) [schema]
+-- and decide whether it is using the ℕ correctly?
+
+
+
+
+judgment Sum( ℕ , ℕ , ℕ ) where
+
+-- explicitly annotated and in fitch-style notation
+sum-z : |
+        |-----------------------
+        | ∀ ℕ Sum( Z , ℕ , ℕ )
+
+
+-- explicitly annotated and in fitch-style notation
+-- it has to be an implication now
+sum-s : |
+        |-------------------------------------------------------------------
+        | ∀ ℕ₁ ∀ ℕ₂ ∀ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ ) ==> Sum( S(ℕ₁) , ℕ₂ , S(ℕ₃) )
+
+
+-- So, how do I use those, now?
+-- I think I use these to claim the conclusions.
+-- Then I can eliminate the quantification and do whatever I need.
+-- The sum-s rule is now implication, so I make use of the ==>-elim rule.
+
+
+-- I think it's finally starting to click for me.
+-- When I dealt with sum-z and sum-s as with rules there was some amount of implicit work going on.
+-- Lowering them to this kind of representation makes each step more clear.
+
+-- It seems to me that I could start by implementing this functionality and then support rules
+-- that have implicit quantification and their use requires the tool to do the ∀-elim behind the scenes.
+
+
+
+
+theorem totality :  ∀ ℕ₁ ∀ ℕ₂ ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ )
+|-------------------------------------------------------
+| N2 :  | all ℕ₂
+|       |----------------
+|       |
+|       | -- [[ Now, I need to prove the base case. ]]
+|       |
+|       | sz : ∀ ℕ Sum( Z , ℕ , ℕ )  by rule sum-z
+|       | sum23 : Sum( Z , ℕ₂ , ℕ₃ )  by rule ∀-elim on sz
+|       | base : ∃ ℕ₃ Sum( Z , ℕ₂ , ℕ₃ )  by rule ∃-intro sum23
+|       |
+|       |
+|       | -- [[ Now, I need to prove the iductive case. ]]
+|       | -- I need to prove:  ∀ ℕ' [ ∃ ℕ₃ Sum( ℕ' , ℕ₂ , ℕ₃ ) ==> ∃ ℕ₃ Sum( S(ℕ') , ℕ₂ , ℕ₃ ) ]
+|       | 
+|       | N∀ :  | all ℕ'
+|       |       |---------------------
+|       |       |
+|       |       | -- I need to prove:  ∃ ℕ₃ Sum( ℕ' , ℕ₂ , ℕ₃ ) ==> ∃ ℕ₃ Sum( S(ℕ') , ℕ₂ , ℕ₃ )
+|       |       | -- So, implication:
+|       |       |
+|       |       | im :  | p1: ∃ ℕ₃ Sum( ℕ' , ℕ₂ , ℕ₃ )
+|       |       |       |--------------------------------
+|       |       |       |
+|       |       |       | N3 :  | p2: Sum( ℕ' , ℕ₂ , ℕ₃ )
+|       |       |       |       |-----------------------------
+|       |       |       |       |
+|       |       |       |       | sums : ∀ ℕ₁ ∀ ℕ₂ ∀ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ ) ==> Sum( S(ℕ₁) , ℕ₂ , S(ℕ₃) )  by rule sum-s
+|       |       |       |       |
+|       |       |       |       | impl : Sum( ℕ' , ℕ₂ , ℕ₃ ) ==> Sum( S(ℕ') , ℕ₂ , S(ℕ₃) )  by rule ∀-elim on sums 
+|       |       |       |       |
+|       |       |       |       | d1 : Sum( S(ℕ') , ℕ₂ , S(ℕ₃) ) by rule ==>-elim on impl, p2
+|       |       |       |       |
+|       |       |       |       | _ : ∃ ℕ₃ Sum( S(ℕ') , ℕ₂ , ℕ₃ ) by rule ∃-intro on d1, S(ℕ₃)  -- I am generalizing over S(ℕ₃), the engine may figure it out.
+|       |       |       |
+|       |       |       | _ : ∃ ℕ₃ Sum( S(ℕ') , ℕ₂ , ℕ₃ )  by rule ∃-elim on p1, N3
+|       |       |
+|       |       | impl : ∃ ℕ₃ Sum( ℕ' , ℕ₂ , ℕ₃ ) ==> ∃ ℕ₃ Sum( S(ℕ') , ℕ₂ , ℕ₃ )  by rule ==>-intro on im
+|       |
+|       | ind : ∀ ℕ' [ ∃ ℕ₃ Sum( ℕ' , ℕ₂ , ℕ₃ ) ==> ∃ ℕ₃ Sum( S(ℕ') , ℕ₂ , ℕ₃ ) ]  by rule ∀-intro on N∀
+|       |
+|       |
+|       | -- Now, I do proof by induction.
+|       | _: ∀ ℕ₁ ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ )  by induction on base, ind
+|       | -- This checks that all the cases are handled. All the base cases and all the inductive cases.
+|
+| _ : ∀ ℕ₂ ∀ ℕ₁ ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ )  by ∀-intro on N2
+| -- The engine must figure out that the order of those two foralls does not matter.
+|

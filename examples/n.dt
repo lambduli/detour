@@ -1,0 +1,69 @@
+module Nats
+
+constants: S, Z
+
+-- we can also do lexical aliases
+aliases : 0 = Z
+        , 1 = S(Z)
+
+
+axiom nat-z : ℕ(0)
+
+axiom nat-s : ∀ n ℕ(n) ==> ℕ(S(n))
+
+
+axiom sum-z : ∀ n ℕ(n) ==> Sum(0, ℕ, ℕ)
+
+axiom sum-s : ∀ n₁ ∀ n₂ ∀ n₃ ℕ(n₁) ==> ℕ(n₂) ==> ℕ(n₃) ==> Sum( ℕ₁ , ℕ₂ , ℕ₃ ) ==> Sum( S(ℕ₁) , ℕ₂ , S(ℕ₃) )
+
+
+-- I can't prove this theorem without induction.
+-- I am gonna keep it here just so that I can see the syntax.
+
+theorem totality :  ∀ ℕ₂ ∀ ℕ₁ ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ )
+|-------------------------------------------------------
+| N2 :  | all ℕ₂
+|       |----------------
+|       |
+|       | -- [[ Now, I need to prove the base case. ]]
+|       |
+|       | sz : ∀ ℕ Sum( 0 , ℕ , ℕ )  by rule sum-z
+|       | sum23 : Sum( 0 , ℕ₂ , ℕ₃ )  by rule ∀-elim on sz
+|       | base : ∃ ℕ₃ Sum( 0 , ℕ₂ , ℕ₃ )  by rule ∃-intro sum23
+|       |
+|       |
+|       | -- [[ Now, I need to prove the iductive case. ]]
+|       | -- I need to prove:  ∀ ℕ' [ ∃ ℕ₃ Sum( ℕ' , ℕ₂ , ℕ₃ ) ==> ∃ ℕ₃ Sum( S(ℕ') , ℕ₂ , ℕ₃ ) ]
+|       | 
+|       | N∀ :  | all ℕ'
+|       |       |---------------------
+|       |       |
+|       |       | -- I need to prove:  ∃ ℕ₃ Sum( ℕ' , ℕ₂ , ℕ₃ ) ==> ∃ ℕ₃ Sum( S(ℕ') , ℕ₂ , ℕ₃ )
+|       |       | -- So, implication:
+|       |       |
+|       |       | im :  | p1: ∃ ℕ₃ Sum( ℕ' , ℕ₂ , ℕ₃ )
+|       |       |       |--------------------------------
+|       |       |       |
+|       |       |       | N3 :  | p2: Sum( ℕ' , ℕ₂ , ℕ₃ )
+|       |       |       |       |-----------------------------
+|       |       |       |       |
+|       |       |       |       | sums : ∀ ℕ₁ ∀ ℕ₂ ∀ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ ) ==> Sum( S(ℕ₁) , ℕ₂ , S(ℕ₃) )  by rule sum-s
+|       |       |       |       |
+|       |       |       |       | impl : Sum( ℕ' , ℕ₂ , ℕ₃ ) ==> Sum( S(ℕ') , ℕ₂ , S(ℕ₃) )  by rule ∀-elim on sums 
+|       |       |       |       |
+|       |       |       |       | d1 : Sum( S(ℕ') , ℕ₂ , S(ℕ₃) ) by rule ==>-elim on impl, p2
+|       |       |       |       |
+|       |       |       |       | ∃ ℕ₃ Sum( S(ℕ') , ℕ₂ , ℕ₃ ) by rule ∃-intro on d1, S(ℕ₃)  -- I am generalizing over S(ℕ₃), the engine may figure it out.
+|       |       |       |
+|       |       |       | ∃ ℕ₃ Sum( S(ℕ') , ℕ₂ , ℕ₃ )  by rule ∃-elim on p1, N3
+|       |       |
+|       |       | ∃ ℕ₃ Sum( ℕ' , ℕ₂ , ℕ₃ ) ==> ∃ ℕ₃ Sum( S(ℕ') , ℕ₂ , ℕ₃ )  by rule ==>-intro on im
+|       |
+|       | ind : ∀ ℕ' [ ∃ ℕ₃ Sum( ℕ' , ℕ₂ , ℕ₃ ) ==> ∃ ℕ₃ Sum( S(ℕ') , ℕ₂ , ℕ₃ ) ]  by rule ∀-intro on N∀
+|       |
+|       |
+|       | -- Now, I do proof by induction.
+|       | ∀ ℕ₁ ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ )  by induction on base, ind
+|       | -- This checks that all the cases are handled. All the base cases and all the inductive cases.
+|
+| ∀ ℕ₂ ∀ ℕ₁ ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ )  by ∀-intro on N2

@@ -16,11 +16,11 @@ _ : | human->mortal : ∀x human(x) ==> mortal(x)
     | p:  | h: human(a) for some a
     |     |-------------------------
     |     |
-    |     | human-a=>mortal-a : human(a) ==> mortal(a)  by ∀-elim on human->mortal, a
-    |     | mortal-a  : ==>-elim on human-a=>mortal-a, h
-    |     | mortal-z  : ∃ z mortal(z) by ∃-intro mortal-a, a
+    |     | human-a=>mortal-a : human(a) ==> mortal(a)  by rule ∀-elim on human->mortal, a
+    |     | mortal-a  : mortal(a)  by rule ==>-elim on human-a=>mortal-a, h
+    |     | mortal-z  : ∃ z mortal(z)  by rule ∃-intro on mortal-a, a
     |
-    | mortal-z  : ∃ z mortal(z) by ∃-intro on ∃-human, p
+    | mortal-z  : ∃ z mortal(z) by rule ∃-elim on ∃-human, p
 
 
 
@@ -29,13 +29,59 @@ theorem test-universal: ∀ x P(x) ==> G(x)
                       ⊢ ∀ z G(z) .
 _:  | p1: ∀ x P(x) ==> G(x)
     | p2: ∀ y P(y)
-    |------------------------------
+    |-------------------------------------
     |
-    | _ : | any/all/every a, b, c
+    | -- is the following OK?
+    | Pa=>Ga : P(a) ==> G(a)  by rule ∀-elim on p1
+    |
+    | -- is the following OK?
+    | Pb : P(b)  by rule ∀-elim on p1, b
+    |
+    |
+    | -- it seems to me that maybe first introducing a universal variable
+    | -- and using it for ∀-elimination is a better idea?
+    | C : | any/all/every c
     |     |------------------------
     |     |
-    |     | 
+    |     | Pc=>Gc : P(c) ==> G(c)  by rule ∀-elim on p1
     |     |
+    |     | Pc : P(c)  by rule ∀-elim on p1
     |     |
+    |     | Gc : G(c)  by rule ==>-elim on Pc=>Gc, Pc
+    |
+    | _: ∀ z G(z)  by rule ∀-intro C, z
+
+-- so  I think it would be fine to let the ∀-elim introduce new implicit universal variable
+-- and use that implicit in the following ∀-intro
+-- they are both universal variables so this checks out
+-- but I can't use ∀-intro on some implicitly-introduced-variable
+-- there's a syntactic restriction to this
+-- so even though it would make sense (perhaps even in all the possible cases)
+-- as long as the variable stays fresh
+-- it might not be a good idea
+-- for example—what would happen if AFTER we introduce the ∀
+-- that variable is unified with some constant?
+-- in a way it shouldn't matter right, because at that point we don't care
+-- but I can see how it could lead to confusion
+
+
+-- I don't like the proof above. it's weird maybe
+-- maybe this will be better
+
+theorem test-universal: ∀ x P(x) ==> G(x)
+                      , ∀ y P(y)
+                      ⊢ ∀ z G(z) .
+_:  | p1: ∀ x P(x) ==> G(x)
+    | p2: ∀ y P(y)
+    |-------------------------------------
+    |
+    | C : | any/all/every c
+    |     |------------------------
     |     |
+    |     | Pc=>Gc : P(c) ==> G(c)  by rule ∀-elim on p1
     |     |
+    |     | Pc : P(c)  by rule ∀-elim on p1
+    |     |
+    |     | Gc : G(c)  by rule ==>-elim on Pc=>Gc, Pc
+    |
+    | _: ∀ z G(z)  by rule ∀-intro C

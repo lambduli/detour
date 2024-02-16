@@ -1,0 +1,119 @@
+module Naturals
+
+
+constants: S, Z
+
+
+syntax:
+
+inductive ℕ, Nat, N, M  = Z       @base       -- annotations for induction
+                        | S(ℕ)    @inductive  -- annotations for induction
+
+-- I am thinking maybe introducing these annotations would make
+-- it easier to implement the checking?
+
+
+
+judgment Sum( ℕ , ℕ , ℕ ) where
+
+
+----------------- sum-z @base
+Sum( Z , ℕ , ℕ )
+
+-- shouldn't this be written using the fitch-style notation as well?
+
+sum-z : |
+        |-------------------
+        | Sum( Z , ℕ , ℕ )
+
+-- and shouldn't it be explicitly quantified?
+
+sum-z : |
+        |-----------------------
+        | ∀ ℕ Sum( Z , ℕ , ℕ )
+
+
+
+Sum( ℕ₁ , ℕ₂ , ℕ₃ )
+--------------------------- sum-s  @inductive
+Sum( S(ℕ₁) , ℕ₂ , S(ℕ₃) )
+
+-- and this too:
+
+sum-s : | p1: Sum( ℕ₁ , ℕ₂ , ℕ₃ )
+        |----------------------------
+        | Sum( S(ℕ₁) , ℕ₂ , S(ℕ₃) )
+
+-- but if I want to explicitly quantify the above I need to change the shape from "derivation" to implication:
+
+sum-s : |
+        |-------------------------------------------------------------------
+        | ∀ ℕ₁ ∀ ℕ₂ ∀ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ ) ==> Sum( S(ℕ₁) , ℕ₂ , S(ℕ₃) )
+
+
+-- So, how do I use those, now?
+-- I think I use these to claim the conclusions.
+-- Then I can eliminate the quantification and do whatever I need.
+-- The sum-s rule is now implication, so I make use of the ==>-elim rule.
+
+
+
+
+
+theorem totality :  ∀ ℕ₁ ∀ ℕ₂ ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ )
+|-------------------------------------------------------
+| N2 :  | all ℕ₂
+|       |----------------
+|       |
+|       | -- now I need to prove the base case
+|       | N3 :  | some ℕ₃
+|       |       |-------------------------------------------
+|       |       |
+|       |       | _ : Sum( Z , ℕ₂ , ℕ₃ )  by rule sum-z
+|       |
+|       | -- by leaving the scope of the N3, we forget ℕ₃
+|       | -- this makes ℕ₂ not unified with it and fresh again.
+|       | -- But maybe this is not even necessary.
+|       | -- Would it even matter if this specific ℕ₃ stays unified with ℕ₂?
+|       | -- It might not.
+|       | -- Maybe I should just have the justification at the line 38 in the same scope, no sub-proofs necessary?
+|       |
+|       | base : ∃ ℕ₃ Sum( Z , ℕ₂ , ℕ₃ )  by rule ∃-intro N3, ℕ₃
+|       | -- I am thinking that I can do this even though
+|       | -- ℕ₂ and ℕ₃ are unified at this point, they are the same thing
+|       | -- but I only need to generalize and claim that there exists such ℕ₃ so that ...
+|       | -- I don't need to talk about ℕ₂ at this point. I think this should be fine.
+|       |
+|       |
+|       | -- Now, I need to prove:  ∀ ℕ' [ ∃ ℕ₃ Sum( ℕ' , ℕ₂ , ℕ₃ ) ==> ∃ ℕ₃ Sum( S(ℕ') , ℕ₂ , ℕ₃ ) ]
+|       | 
+|       | N∀ :  | all ℕ'
+|       |       |---------------------
+|       |       |
+|       |       | -- I need to prove:  ∃ ℕ₃ Sum( ℕ' , ℕ₂ , ℕ₃ ) ==> ∃ ℕ₃ Sum( S(ℕ') , ℕ₂ , ℕ₃ )
+|       |       | -- So, implication:
+|       |       |
+|       |       | im :  | p1: ∃ ℕ₃ Sum( ℕ' , ℕ₂ , ℕ₃ )
+|       |       |       |--------------------------------
+|       |       |       |
+|       |       |       | N3 :  | p2: ℕ₃ Sum( ℕ' , ℕ₂ , ℕ₃ )
+|       |       |       |       |-----------------------------
+|       |       |       |       |
+|       |       |       |       | d1 : Sum( S(ℕ') , ℕ₂ , S(ℕ₃) ) by rule sum-s on 
+|       |       |       |       |
+|       |       |       |       | _ : ∃ ℕ₃ Sum( S(ℕ') , ℕ₂ , ℕ₃ ) by rule ∃-intro on d1, S(ℕ₃)  -- I am generalizing over S(ℕ₃), the engine may figure it out.
+|       |       |       |
+|       |       |       | _ : ∃ ℕ₃ Sum( S(ℕ') , ℕ₂ , ℕ₃ )  by rule ∃-elim on p1, N3
+|       |       |
+|       |       | impl : ∃ ℕ₃ Sum( ℕ' , ℕ₂ , ℕ₃ ) ==> ∃ ℕ₃ Sum( S(ℕ') , ℕ₂ , ℕ₃ )  by rule ==>-intro on im
+|       |
+|       | ind : ∀ ℕ' [ ∃ ℕ₃ Sum( ℕ' , ℕ₂ , ℕ₃ ) ==> ∃ ℕ₃ Sum( S(ℕ') , ℕ₂ , ℕ₃ ) ]  by rule ∀-intro on N∀
+|       |
+|       |
+|       | -- Now, I do proof by induction.
+|       | _: ∀ ℕ₁ ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ )  by induction on base, ind
+|       | -- This checks that all the cases are handled. All the base cases and all the inductive cases.
+|
+| _ : ∀ ℕ₂ ∀ ℕ₁ ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ )  by ∀-intro on N2
+| -- The engine must figure out that the order of those two foralls does not matter.
+|

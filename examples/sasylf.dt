@@ -1,0 +1,203 @@
+package plmts.proofs.nats;
+
+terminals S Z Suc Zero Bad One First Second Sum
+
+
+/************************ SYNTAX **************************************/
+
+
+syntax
+
+// I think that all of these are : Type
+
+m, n ::= Z
+      |  Zero
+  		|  S n
+      |  Suc n
+
+// you OK with that????
+a ::= One b
+
+b ::= First a
+    | Second
+
+
+0 := Z
+1 := S 0
+2 := S 1
+3 := S 2
+4 := S 3
+
+
+
+/************************ JUDGMENTS **************************************/
+
+// judgment bad: (n + n = n)
+
+// I think that these are : Proposition
+// BUT! They can only abstract over values of : Type
+// never other propositions
+// so I can write     sum : n + n = n
+// but I can't write      bad : sum ⋞ n
+
+
+// maybe it is kinda like
+// data Sum : Type -> Type -> Type -> Proposition
+
+// but not like
+// data Bad : Proposition -> Type -> Proposition
+
+// something to think about
+
+// question is—do I want to be able to do propositions over propositions?
+
+// well, Detour does not need judgements at all, I think
+// or does it?
+// Well, it sort of can just make do with just propositions just being mentioned.
+// I don't get pattern matching and inversion and all that, but I wasn't aiming for that.
+// So maybe we are good?
+// I can just use implications, right.
+// It does not have the same meaning, but it should give me something to work with.
+
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+
+I think it makes sense that I can't make judgments over judgments.
+
+SASyLF aims to enable reasoning about languages (that's the syntax part) and not
+about judgments that I define over that syntax.
+
+I think this makes sense.
+
+
+
+
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+
+
+
+
+judgment sum: n + n = n
+
+--------- sum-z
+Z + n = n
+
+
+------------ sum-zero
+Zero + n = n
+
+
+
+n1 + n2 = n3
+-------------------- sum-s
+(S n1) + n2 = (S n3)
+
+
+n1 + n2 = n3
+------------------------ sum-suc
+(Suc n1) + n2 = (Suc n3)
+
+
+// judgment eq-nat: n = n
+// 
+// ------ eq
+// n = n
+
+
+judgment eq-nat: n = n
+
+n = n
+------ badie
+n = n
+
+
+judgment rev-sum: n + n ≠ n
+
+// --------- sum-z
+// Z + n = n
+
+
+(S n1) + n2 = (S n3)
+--------------------- sum-sr
+n1 + n2 ≠ n3
+
+
+judgment bad: n ÷ n
+
+------------- bad-1
+Z ÷ Z
+
+
+judgment higher: n => n
+
+n ÷ n
+--------------- what
+n => Z
+
+
+judgment worse: n -> n
+
+---------------- worse-1
+n -> n
+
+
+/************************ THEOREMS **************************************/
+
+
+// lemma testing-inversion:  forall p1: S n + Z = S m
+//                           exists n + Z = m.
+// proof by inversion of rule sum-s on p1
+// end lemma
+// 
+// lemma testing-inversion1: forall p1: S n + n1 = S m
+//                           exists n + n1 = m.
+// proof by inversion of rule sum-s on p1
+// end lemma
+
+// // inversion can not be used when there would be more than one case
+// // lemma testing-inversion2: forall p1: n + Z = m
+// //                           exists n + n1 = m.
+// // proof by inversion of rule sum-s on p1
+// // end lemma
+
+
+// theorem false : forall p1: Z = S n
+//                 exists contradiction
+// proof by case analysis on p1:
+//   case rule
+//     prem: Z 
+//     -------
+
+
+
+
+theorem totality : 	forall n1
+										forall n2
+										exists n1 + n2 = n3
+
+proof by induction on n1:
+  case Z is 						/* ∀ n2 ∃ n3 : z + n2 = n3 */
+		proof by rule sum-z
+	end case
+
+  case Zero is
+    proof by rule sum-zero
+  end case
+
+	case S n' is					/* ∀ n2 ∃ n3 n' : (s n') + n2 = n3 */
+		p': n' + n2 = n3' by induction hypothesis on n', n2
+
+		p1: (S n') + n2 = (S n3') by rule sum-s on p'
+	end case
+
+  case Suc n' is
+    p': n' + n2 = n3' by induction hypothesis on n', n2
+
+    _: (Suc n') + n2 = Suc n3' by rule sum-suc on p'
+
+  end case
+end induction
+end theorem
+
+
