@@ -1,9 +1,9 @@
 module Syntax.Assumption where
 
+
 import Syntax.Formula ( Formula )
 
 
-data Assumption = Formula Formula
+data Assumption = Formula [(Maybe String, Formula)]
                 | Universal [String]
-                | Formula'For'Some Formula [String]
   deriving (Show, Eq)

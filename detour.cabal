@@ -23,7 +23,7 @@ name:               detour
 version:            0.1.0.0
 
 -- A short (one-line) description of the package.
--- synopsis:
+synopsis: A toy proof checker for FOL Natural Deduction proofs in Fitch-style notation.
 
 -- A longer description of the package.
 -- description:
@@ -49,10 +49,70 @@ build-type:         Simple
 extra-doc-files:    CHANGELOG.md
 
 -- Extra source files to be distributed with the package, such as examples, or a tutorial module.
--- extra-source-files:
+extra-source-files:
+    src/Parser/Lexer.x
+    src/Parser/Parser.y
 
 common warnings
     ghc-options: -Wall
+
+library
+    -- Import common warning flags.
+    import:           warnings
+
+    -- Modules exported by the library.
+    exposed-modules:
+        Check.Check
+        Check.Environment
+        Check.Error
+        Check.Module
+        Check.State
+        Check.Theorem
+
+        Parser.Lexer
+        Parser.Parser
+        Parser.Token
+
+        Syntax.Assumption
+        Syntax.Definition
+        Syntax.Derivation
+        Syntax.Formula
+        Syntax.Justification
+        Syntax.Module
+        Syntax.Relation
+        Syntax.Term
+        Syntax.Theorem
+
+        Unification.Meta
+
+    -- Modules included in this library but not exported.
+    -- other-modules:
+
+    -- LANGUAGE extensions used by modules in this package.
+    -- other-extensions:
+
+    -- Other library packages from which modules are imported.
+    build-depends:
+        base ^>=4.17.1.0,
+        array >= 0.5.4.0,
+        containers >=0.6.2.1,
+        directory,
+        extra,
+        filepath,
+        hspec,
+        mtl,
+        transformers,
+        utf8-string,
+
+    -- Directories containing source files.
+    hs-source-dirs:   src
+
+    -- Base language which the package is written in.
+    default-language: Haskell2010
+
+    build-tool-depends: alex:alex >=3.2.6 && <4.0, happy:happy >=1.20.0 && <2.0
+
+    default-extensions: NamedFieldPuns ImportQualifiedPost BangPatterns InstanceSigs
 
 executable detour
     -- Import common warning flags.

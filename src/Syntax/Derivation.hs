@@ -1,13 +1,23 @@
 module Syntax.Derivation where
 
+
 import Syntax.Formula ( Formula(..) )
 import Syntax.Assumption ( Assumption )
+import Syntax.Justification ( Justification )
 
 
-data Derivation = Sub'Proof { name :: Maybe String
-                            , assumptions :: [Assumption]  -- assumptions can introduce new constants and variables, that needs to be taken care of
-                            , derivations :: [Derivation] }
-                | Rule      { name :: Maybe String
-                            , formula :: Maybe Formula
-                            , justification :: Justification }
+data Derivation = Sub'Proof Proof
+                | Claim Claim
+  deriving (Show, Eq)
+
+
+data Proof = Proof{ name :: Maybe String
+                  , assumption :: Assumption
+                  , derivations :: [Derivation] }
+  deriving (Show, Eq)
+
+
+data Claim = Claim{ name :: Maybe String
+                  , formula :: Maybe Formula
+                  , justification :: Justification }
   deriving (Show, Eq)

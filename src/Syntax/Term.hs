@@ -1,8 +1,11 @@
 module Syntax.Term where
 
 
+import Data.List ( intercalate )
+
+
 data Term = Var String                  -- x, y, z
-          | Fn String [Term]            -- ƒ(x, y)
+          | Fn String [Term]            -- ƒ(x, y), αᶜ, aᶜ, β(), b()
   deriving (Eq, Ord)
 
 

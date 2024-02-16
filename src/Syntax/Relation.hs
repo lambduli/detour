@@ -1,5 +1,6 @@
 module Syntax.Relation where
 
+
 import Syntax.Term ( Term )
 
 

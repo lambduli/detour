@@ -1,12 +1,16 @@
 module Syntax.Formula where
 
-import Syntax.Term ( Term(..) )
+
+import Prelude hiding (True, False)
+import Prelude qualified as P
+import Data.List ( intercalate )
+-- import Syntax.Term ( Term(..) )
 import Syntax.Relation ( Relation(..) )
 
 
 data Formula  = True                    -- ⊤
               | False                   -- ⊥
-              | Atom Rel                -- P(x, ƒ(x, y))
+              | Atom Relation           -- P(x, ƒ(x, y))
               | Not Formula             -- ¬P(x, ƒ(x, y))
               | And Formula Formula     -- ⊤ ∧ ⊤
               | Or Formula Formula      -- ⊤ ∨ ⊥
@@ -18,6 +22,7 @@ data Formula  = True                    -- ⊤
 
 
 instance Show Formula where
+  show :: Formula -> String
   show True = "⊤"
   show False = "⊥"
   show (Atom (Rel n [])) = n
