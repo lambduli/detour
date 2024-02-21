@@ -4,27 +4,39 @@ module Naturals
 constants: S, Z
 
 
-syntax:
+judgments:  -- or maybe no "judgments:" or "syntax:"
 
-inductive ℕ, Nat, N, M  = Z       @base       -- annotations for induction
-                        | S(ℕ)    @inductive  -- annotations for induction
+ℕ, Nat, N, M  = Z
+              | S(ℕ)
 
--- I am thinking maybe introducing these annotations would make
--- it easier to implement the checking?
+-- maybe I don't want to have two kinds of syntax for "judgments" and "syntax"
+-- technically, inductive relations are judgments too, so maybe I can do with one way to write both
+
+judgment ℕ(o) for any object o:
+
+  ------ nat-z
+  ℕ( Z )
+
+
+  ℕ( x )
+  --------- nat-s
+  ℕ( S(x) )
 
 
 
-judgment Sum( ℕ , ℕ , ℕ ) where
+
+judgment Sum( ℕ , ℕ , ℕ ):
+--  The use of ℕ goes hints at this: `∀ x y z ℕ(x) ==> ℕ(y) ==> ℕ(z) ==> Sum(x, y, z)`.
 
 
------------------ sum-z @base
-Sum( Z , ℕ , ℕ )
+  ----------------- sum-z
+  Sum( Z , ℕ , ℕ )
 
 -- shouldn't this be written using the fitch-style notation as well?
 
-sum-z : |
-        |-------------------
-        | Sum( Z , ℕ , ℕ )
+rule schema sum-z:  |
+                    |-------------------
+                    | Sum( Z , ℕ , ℕ )
 
 -- and shouldn't it be explicitly quantified?
 
@@ -33,9 +45,13 @@ sum-z : |
         | ∀ ℕ Sum( Z , ℕ , ℕ )
 
 
+-- I think I'm gonna use the usual notation for rules.
+-- Maybe I can support both? Idk.
+
+
 
 Sum( ℕ₁ , ℕ₂ , ℕ₃ )
---------------------------- sum-s  @inductive
+--------------------------- sum-s
 Sum( S(ℕ₁) , ℕ₂ , S(ℕ₃) )
 
 -- and this too:

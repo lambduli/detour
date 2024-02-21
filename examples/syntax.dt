@@ -1,0 +1,249 @@
+judgment ≡(A, B) for any proposition A, B:
+
+rule schema eq-not-and for any proposition A, B : |
+                                                  |-------------------------
+                                                  | ≡( ¬(A ∧ B) , ¬A ∨ ¬B )
+
+--  However, the judgment definition can serve as a sort of a binder.
+--  So I could make it so that A and B are propositional meta-variables
+--  in the scope of any rule of this judgment.
+--  The (explicit) above would still be possible. It would be another local binder.
+
+-------------------------------------------------------------------------------
+
+judgment ℕ(o) for any object o:
+
+rule nat-z: |
+            |------
+            | ℕ( Z )
+
+--  I can also write the rule name behind the line, they must be the same name.
+
+rule nat-z: |
+            |--------- nat-z
+            | ℕ( Z )
+
+
+rule schema nat-s for any object x: | ℕ( x )
+                                    |--------- nat-s
+                                    | ℕ( S(x) )
+
+--  I guess, repeating the part "for any object x"
+--  is a bit redundant. It is obvious from the judgment definition
+--  that it must be an object. So maybe I can leave it out.
+
+rule schema nat-s:  | ℕ( x )
+                    |--------- nat-s
+                    | ℕ( S(x) )
+
+-------------------------------------------------------------------------------
+
+judgment Sum( ℕ , ℕ , ℕ ):
+
+--  This can be read as a shorthand for the following:
+judgment Sum(x, y, z) for any object x, y, z such that ℕ(x), ℕ(y), ℕ(z):
+
+--  I could make it so that this explicit form is also legal.
+
+rule schema sum-z:  |
+                    |------------------- sum-z
+                    | Sum( Z , ℕ , ℕ )
+
+--  Technically, I can write the above explicitly like this:
+
+rule schema sum-z for any object n such that ℕ(n):  |
+                                                    |------------------- sum-z
+                                                    | Sum( Z , n , n )
+
+
+rule schema sum-s:  | Sum( ℕ₁ , ℕ₂ , ℕ₃ )
+                    |--------------------------- sum-s
+                    | Sum( S(ℕ₁) , ℕ₂ , S(ℕ₃) )
+
+--  I can write this explicitly too, but I won't.
+
+
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+
+--  The (first-order) theorem schemas over objects are fine.
+
+--  Can we have this second-order for theorems too?
+--  Something like:
+
+
+theorem schema nnf-¬∧ for any proposition A, B: ¬(A ∧ B)
+                                              ⊢ ¬A ∨ ¬B
+_ : | p: ¬(A ∧ B)
+    |--------------------------------------------
+    | --  How do we prove something like this?
+    | --  I am thinking by case analysis on the truthiness of the A and B.
+    |
+    | --  I need to prove that for both cases (A holds) (¬A holds)
+    | --  the `¬A ∨ ¬B` will have the same logical valuation as the ¬(A ∧ B).
+    | --
+    | __  : | "A holds"
+    |       |------------------------------------
+    |       |
+    |       | b :   | "B holds"
+    |       |       |------------------------------
+    |       |       |
+    |       |       | _ : ¬(A ∧ B) doesn't hold  by valuation/interpretation
+    |       |       | _ : ¬A ∨ ¬B doesn't hold  by valuation/interpretation
+    |       |
+    |       |   : | "¬B holds"
+    |       |       |----------------------------
+    |       |       |
+    |       |       | _ : ¬(A ∧ B) holds  by valuation/interpretation
+    |       |       | _ : ¬A ∨ ¬B holds  by valuation/interpretation
+    |       |
+    |       | _ : ¬A ∨ ¬B  by case analysis on truth valuation of B on 
+    |
+    |
+    | __  : | "¬A holds"
+    |       |------------------------------------
+    |       |
+    |       |
+    |
+    | _ : ¬A ∨ ¬B  by case analysis on truth valuation of A, B on ...
+
+
+-- or maybe a proof "by truth table"?
+
+
+
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+
+judgment AND(A, B) for any proposition A, B:
+
+rule schema and-intro for any proposition A, B: | A
+                                                | B
+                                                |------------ and-intro
+                                                | AND(A, B)
+
+
+--  Do I need to define the elimination rule for AND too?
+--  I think I might not need to, I would just do a case analysis on the
+--  proof of AND(A, B), used the rule and-intro as a single option
+--  (or I would do `by inversion`)
+--  and I would obtain A and B.
+--  This seems to work nicely because of the implicit understanding
+--  that the premises are all in "conjunction".
+
+
+
+
+judgment OR(A, B) for any proposition A, B:
+
+rule schema or-intro-l for any proposition A, B:  | A
+                                                  |----------- or-intro-l
+                                                  | OR(A, B)
+
+rule schema or-intro-r for any proposition A, B:  | B
+                                                  |----------- or-intro-r
+                                                  | OR(A, B)
+
+
+--  And again, to eliminate this, we use case analysis.
+
+
+--  This brings me to the point of the example above.
+--  It seems that at some point (when I implement custom rules and rule schemas and case analysis)
+--  I will be able to stop using the built-in rules for first-order predicate logic
+--  and define my own connectives and their rules.
+
+
+--  The questions that remains—what should the case analysis look like?
+
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+
+
+theorem __  : ∀ n ℕ(S(n)) ==> ℕ(n)
+α : | any α
+    |----------------------------------
+    |
+    | sub-proof : | p1 : ℕ(S(α))
+    |             |--------------------
+    |             |
+    |             | ℕ(α)  by inversion of rule sum-s on p1
+    |             |
+    |             | -- alternatively, we would need to do full case analysis
+    |             |
+    |             | ℕ(α)  by case analysis on p1 :  | ℕ( S(α) )
+    |             |                                 |------------------------ sum-s
+    |             |                                 |
+    |             |                                 | ℕ( α )
+    |
+    | ℕ(S(α)) ==> ℕ(α)  by ==>-intro on sub-proof
+
+∀ n ℕ(S(n)) ==> ℕ(n)  by rule ∀-intro on α
+
+
+--  I like the proof above quite a bit.
+
+--  There is one aspect that I want to discuss.
+--  The theorem is an implication and not the usual logical consequence statement.
+--  This allows me to quantify over the n explicitly.
+
+--  If I have written it as a statement about logical consequence:
+
+theorem __  : ∀ n ℕ(S(n)) ⊢ ℕ(n)
+
+--  it wouldn't really make sense to use the ∀ n.
+--  So I would have to do something like:
+
+theorem __  : ℕ(S(n)) ⊢ ℕ(n)
+
+--  and leave the n to be quantified implicitly.
+--  It would make sense to mean universal quantification for the implicit variables.
+
+
+--  It might make sense to also allow more explicit form:
+
+theorem __ for any object n : ℕ(S(n)) ⊢ ℕ(n)
+
+
+
+
+--  There's one more thing.
+--  What about theorem like this:
+
+
+theorem __  : S(n) ⊢ ℕ(n)
+
+--  The deal is—the premise is not a proposition/formula.
+--  It is an object.
+--  I suppose this could be useful for some sort of auxiliary theorems/lemmas
+--  where in the main proof I have a variable unified with S(n) or maybe even S(n) directly
+--  and I need to sort of "hide" the details of proving the conclusion.
+
+--  I don't really know how to make it a "proper" theorem in the logic.
+--  I don't know whether that is a problem or not.
+
+--  SASyLF does not allow that. I don't know why I thought it does.
+
+
+
+--  So how would I write totality as a statemtn of a logical consequence
+--  with the implicit quantification?
+--  Can I even do that?
+--  Do I even want to do that? Is it useful for anything?
+
+theorem totality : ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ )
+
+--  Or rather explicitly:
+
+theorem totality for any object ℕ₁, ℕ₂ such that ℕ(ℕ₁), ℕ(ℕ₂) : ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ )
+
+
+--  Well, if nothing else, I can use it a little bit more straightforwardly
+--  if it's a logical consequence.
+--  Sum(m , n, o)  by theorem totality on m, n
+
+--  The issue is, it seems that there would need to be some sort of implicit
+--  instantiation of the ∃ ℕ₃.
+
+--  I don't know if I like this.
+

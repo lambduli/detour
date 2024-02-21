@@ -12,9 +12,9 @@ axiom nat-z : ℕ(0)
 axiom nat-s : ∀ n ℕ(n) ==> ℕ(S(n))
 
 
-axiom sum-z : ∀ n ℕ(n) ==> Sum(0, ℕ, ℕ)
+axiom sum-z : ∀ n ℕ(n) ==> Sum(0, n, n)
 
-axiom sum-s : ∀ n₁ ∀ n₂ ∀ n₃ ℕ(n₁) ==> ℕ(n₂) ==> ℕ(n₃) ==> Sum( ℕ₁ , ℕ₂ , ℕ₃ ) ==> Sum( S(ℕ₁) , ℕ₂ , S(ℕ₃) )
+axiom sum-s : ∀ n₁ ∀ n₂ ∀ n₃ ℕ(n₁) ==> ℕ(n₂) ==> ℕ(n₃) ==> Sum( n₁ , n₂ , n₃ ) ==> Sum( S(n₁) , n₂ , S(n₃) )
 
 
 -- I can't prove this theorem without induction.

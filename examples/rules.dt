@@ -1,11 +1,55 @@
 
 
-rule eq:
+judgment eq(A, B) for any proposition A, B:
 
-eq-not-and: ¬(A ∧ B) ≡ ¬A ∨ ¬B
+rule schema eq-not-and for A, B : |
+                                  |-----------------------
+                                  | ¬(A ∧ B) ≡ ¬A ∨ ¬B
+
+-- this is sort of an axiom (schema), isn't it?
+
+-- so maybe?
+
+axiom schema eq-not-and for A, B :  |
+                                    |-----------------------
+                                    | ¬(A ∧ B) ≡ ¬A ∨ ¬B
+
+
+
+-- in any case, this is also the same as this:
+
+axiom/rule schema eq-not-and for A, B:
+_ : |
+    |---------------------
+    | ¬(A ∧ B) ≡ ¬A ∨ ¬B
 
 
 
 
-x: ¬(A ∧ B) by ...
-y: ¬(A ∧ B) ≡ ¬A ∨ ¬B 
+x: ¬(P ∧ G) by ...
+y: ¬(P ∧ G) ≡ ¬P ∨ ¬G  by rule eq-not-and on P, G
+
+
+-- this doesn't really give me a way to justify one when given the other
+-- but I could have a rule like this:
+
+
+rule schema ≡-elim for A, B:
+_ : | A ≡ B
+    | A
+    |---------
+    | B
+
+
+-- I would also add a rule for symmetry ...
+
+The rule `≡-elim` should allow me to do this:
+
+
+-- suppose I am to prove `¬P ∨ ¬G` and I am able to prove `¬(P ∧ G)`
+-- now, I can do this:
+x: ¬(P ∧ G)  by ...
+y: ¬(P ∧ G) ≡ ¬P ∨ ¬G  by rule eq-not-and on P, G
+z: ¬P ∨ ¬G  by rule ≡-elim on y, x
+
+-- this is neat!
