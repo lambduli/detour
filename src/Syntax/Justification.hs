@@ -4,10 +4,10 @@ module Syntax.Justification where
 import Syntax.Term ( Term )
 
 
-data Justification  = Rule  { name :: Rule, on :: [Term] }
-                    | Theorem { name :: String, on :: [Term] }
+data Justification  = Rule  { kind :: Rule, on :: [String] }
+                    | Theorem { name :: String, on :: [String] }
                     | Unproved
-                    | Induction { on :: [Term] }
+                    | Induction { on :: [String] }
   deriving (Show, Eq)
 
 

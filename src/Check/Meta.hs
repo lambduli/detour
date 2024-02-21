@@ -1,4 +1,4 @@
-module Unification.Meta where
+module Check.Meta where
 
 
 newtype Meta = Meta String

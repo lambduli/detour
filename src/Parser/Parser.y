@@ -366,11 +366,16 @@ name        ::  { Maybe String }
 
 
 Just        ::  { Justification }
-            :   'by' 'rule' LOWER 'on' Terms      { Rule{ name = $3, on = $5 } } 
-            -- |   'by' LOWER 'on' Terms             {  }  -- which one would it be? rule or theorem? or should I look it up and figure it out?
-            |   'by' 'induction' 'on' Terms       { Induction { on = $4 } }
+            :   'by' 'rule' LOWER OnTerms         { Rule{ name = $3, on = $4 } } 
+            -- |   'by' LOWER OnTerms             {  }  -- which one would it be? rule or theorem? or should I look it up and figure it out?
+            |   'by' 'induction' OnTerms          { Induction { on = $3 } }
             |   'by' 'unproved'                   { Unproved }
-            |   'by' 'theorem' LOWER 'on' Terms   { Theorem { name = $3, on = $5 } }
+            |   'by' 'theorem' LOWER OnTerms      { Theorem { name = $3, on = $4 } }
+
+
+OnTerms     ::  { [Terms] }
+            :   'on' Terms                        { $2 }
+            |   {- empty -}                       { [] }
 
 
 Terms       ::  { [Term] }

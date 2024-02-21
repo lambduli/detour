@@ -1,4 +1,4 @@
-module Syntax.Derivation where
+module Syntax.Judgment where
 
 
 import Syntax.Formula ( Formula(..) )
@@ -6,14 +6,15 @@ import Syntax.Assumption ( Assumption )
 import Syntax.Justification ( Justification )
 
 
-data Derivation = Sub'Proof Proof
-                | Claim Claim
+--  TODO: this should, perhaps, be called Judgment
+data Judgment = Sub'Proof Proof
+              | Claim Claim
   deriving (Show, Eq)
 
 
 data Proof = Proof{ name :: Maybe String
                   , assumption :: Assumption
-                  , derivations :: [Derivation] }
+                  , derivations :: [Judgment] }
   deriving (Show, Eq)
 
 

@@ -75,8 +75,8 @@ library
 
         Syntax.Assumption
         Syntax.Definition
-        Syntax.Derivation
         Syntax.Formula
+        Syntax.Judgment
         Syntax.Justification
         Syntax.Module
         Syntax.Relation

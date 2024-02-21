@@ -2,14 +2,14 @@ module Syntax.Theorem where
 
 
 import Syntax.Formula ( Formula )
-import Syntax.Derivation ( Derivation )
+import Syntax.Judgment ( Judgment )
 import Syntax.Assumption ( Assumption )
 
 
 data Theorem = Theorem  { name :: String
                         , assumptions :: [Formula]
                         , conclusion :: Formula
-                        , proof :: [Derivation] }
+                        , proof :: [Judgment] }
                         --  TODO: Do I want to allow the more flexible way?
                         --        Or do I want to just make it Proof?
   deriving (Eq)
