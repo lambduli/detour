@@ -8,6 +8,8 @@ data Justification  = Rule  { kind :: Rule, on :: [String] }
                     | Theorem { name :: String, on :: [String] }
                     | Unproved
                     | Induction { on :: [String] }
+                    | Substitution { on :: Term, using :: String }
+                    | Case { on :: [String] }
   deriving (Show, Eq)
 
 
