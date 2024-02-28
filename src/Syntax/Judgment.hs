@@ -19,6 +19,6 @@ data Proof = Proof{ name :: Maybe String
 
 
 data Claim = Claim{ name :: Maybe String
-                  , formula :: Maybe Formula
+                  , formula :: Formula
                   , justification :: Justification }
   deriving (Show, Eq)
