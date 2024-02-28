@@ -1,11 +1,12 @@
 module Syntax.Judgment where
 
 
-import Syntax.Formula ( Formula(..) )
 import Syntax.Assumption ( Assumption )
-import Syntax.Justification ( Justification )
-import Syntax.Proof ( Proof )
 import Syntax.Claim ( Claim )
+import Syntax.Formula ( Formula(..) )
+import {-# SOURCE #-} Syntax.Justification ( Justification )
+import {-# SOURCE #-} Syntax.Proof ( Proof )
+
 
 
 data Judgment = Sub'Proof Proof

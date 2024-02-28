@@ -10,6 +10,9 @@ import Data.Char ( ord )
 import Data.List ( uncons )
 
 import Parser.Token ( Token )
+import Parser.Token qualified as Token
+
+import Syntax.Term ( Term )
 
 
 }
@@ -113,3 +116,79 @@ $space+                 ;
 @upperident             { emit Token.Upper'Var }
 
 @number                 { emit Token.Number }
+
+
+{
+
+
+token :: Token -> Lexer Token
+token t = return t
+
+
+emit :: (String -> Token) -> String -> Lexer Token
+emit mk't str = return (mk't str)
+
+
+
+
+
+type Lexer a = StateT Lexer'State (Except (String, Int)) a
+
+
+data AlexInput = Input
+  { ai'line'no   :: !Int
+  , ai'col'no    :: !Int
+  , ai'last'char :: !Char
+  , ai'input     :: String }
+  deriving (Eq, Show)
+
+
+data Lexer'State = Lexer'State
+  { lexer'input   :: !AlexInput
+  , constants     :: ![String]
+  , scope         :: ![String]
+  , aliases       :: ![(String, Term)] }
+  deriving (Eq, Show)
+
+
+initial'state :: String -> Lexer'State
+initial'state s = Lexer'State
+  { lexer'input       = Input
+                        { ai'line'no    = 1
+                        , ai'col'no     = 1 
+                        , ai'last'char  = '\n'
+                        , ai'input      = s }
+  , constants         = []
+  , scope             = []
+  , aliases           = [] }
+
+
+-- The functions that must be provided to Alex's basic interface
+alexGetByte :: AlexInput -> Maybe (Word8, AlexInput)
+alexGetByte input@Input{ ai'input }
+  = advance <$> uncons ai'input
+    where
+      advance :: (Char, String) -> (Word8, AlexInput)
+      advance ('\n', rest)
+        = ( fromIntegral (ord '\n')
+          , Input { ai'line'no    = ai'line'no input + 1
+                  , ai'col'no     = 1
+                  , ai'last'char  = '\n'
+                  , ai'input      = rest } )
+
+      advance ('∨', rest)
+        = ( fromIntegral (ord '|')
+          , Input { ai'line'no    = ai'line'no input
+                  , ai'col'no     = ai'col'no input + 1
+                  , ai'last'char  = '|'
+                  , ai'input      = rest } )
+        
+      advance (c, rest)
+        = ( fromIntegral (ord c)
+          , Input { ai'line'no    = ai'line'no input
+                  , ai'col'no     = ai'col'no input + 1
+                  , ai'last'char  = c
+                  , ai'input      = rest } )
+
+
+}

@@ -2,14 +2,15 @@ module Syntax.Justification where
 
 
 import Syntax.Term ( Term )
+import {-# SOURCE #-} Syntax.Proof ( Proof )
 
 
 data Justification  = Rule  { kind :: Rule, on :: [String] }
                     | Theorem { name :: String, on :: [String] }
                     | Unproved
                     | Induction { on :: [String] }
-                    | Substitution { on :: Term, using :: String }
-                    | Case { on :: String, proofs :: [(Proof, String)] }  --  The String is the name of the rule used.
+                    | Substitution { on' :: Term, using :: String } --  TODO: figure out a better name than on'
+                    -- | Case { on :: String, proofs :: [(Proof, String)] }  --  The String is the name of the rule used.
   deriving (Show, Eq)
 
 

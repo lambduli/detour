@@ -7,29 +7,33 @@ import Data.Either.Extra ( mapRight )
 import Data.List qualified as List
 import Data.Maybe ( fromMaybe )
 
-import Lexer  -- TODO: import list
-import Token ( Token )
-import Token qualified as Token
+import Parser.Lexer  -- TODO: import list
+import Parser.Token ( Token )
+import Parser.Token qualified as Token
 
 import Syntax.Assumption ( Assumption(..) )
+import Syntax.Claim ( Claim(..) )
 import Syntax.Definition ( Definition(..) )
-import Syntax.Derivation ( Derivation(..) )
+import Syntax.Judgment ( Judgment(..) )
 import Syntax.Formula ( Formula(..) )
 import Syntax.Justification ( Justification(..) )
 import Syntax.Module ( Module(..) )
+import Syntax.Proof ( Proof(..) )
 import Syntax.Relation ( Relation(..) )
 import Syntax.Term ( Term(..) )
 import Syntax.Theorem ( Theorem(..) )
 
 import Syntax.Assumption qualified as S
+import Syntax.Claim qualified as S
 import Syntax.Relation qualified as S
 import Syntax.Term qualified as S
 import Syntax.Formula qualified as S
 import Syntax.Theorem qualified as S
 import Syntax.Definition qualified as S
-import Syntax.Derivation qualified as S
+import Syntax.Judgment qualified as S
 import Syntax.Justification qualified as S
 import Syntax.Module qualified as S
+import Syntax.Proof qualified as S
 
 }
 
@@ -237,7 +241,7 @@ QFormula    ::  { Formula }
                                                 ; return $1 } }
 
 
-Relation    ::  { Rel }
+Relation    ::  { Relation }
             :   UPPER TermArgsM             { case $2 of
                                               { Just terms -> Rel $1 terms
                                               ; Nothing -> Rel $1 [] } }
@@ -307,7 +311,7 @@ Term        ::  { Term }
             |   '(' Term ')'                { $2 }
 
 
-Proof       ::  { [Derivation] }
+Proof       ::  { [Judgment] }
             :   Subproof Proof              { $1 : $2 }
             |   Claim Proof                 { $1 : $2 }
             |   {- empty -}                 { [] }
@@ -324,7 +328,7 @@ Subproof    ::  { Proof }
                                                     , assumptions = fst $3
                                                     , derivations = snd $3 } }
 
-SubProofAux ::  { (Assumption, [Derivation]) }
+SubProofAux ::  { (Assumption, [Judgment]) }
             :   BEGIN_LAYOUT Assumption '---' Proof END_LAYOUT
                                             { ($2, $4) }
 
@@ -360,7 +364,7 @@ Claim       ::  { Claim }
                                                     , justification = $2 } }
 
 
-name        ::  { Maybe String }
+Name        ::  { Maybe String }
             :   LOWER                             { Just $1 }
             |   '_'                               { Nothing }
 
@@ -373,7 +377,7 @@ Just        ::  { Justification }
             |   'by' 'theorem' LOWER OnTerms      { Theorem { name = $3, on = $4 } }
 
 
-OnTerms     ::  { [Terms] }
+OnTerms     ::  { [Term] }
             :   'on' Terms                        { $2 }
             |   {- empty -}                       { [] }
 

@@ -1,6 +1,5 @@
 module Syntax.Proof where
 
-
 import Syntax.Assumption ( Assumption )
 import Syntax.Judgment ( Judgment )
 

@@ -3,9 +3,12 @@ module Check.Environment where
 
 import Data.Map.Strict qualified as Map
 
+import Syntax.Formula ( Formula )
 import Syntax.Term( Term )
 import Syntax.Theorem ( Theorem )
 import Syntax.Judgment ( Judgment )
+
+import Check.Check ( Check )
 import Check.Meta ( Meta)
 
 
@@ -37,9 +40,3 @@ look'up'theorem name = do
     
     Just thm -> do
       return thm
-
-
-
-
-
-

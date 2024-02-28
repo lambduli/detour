@@ -1,6 +1,12 @@
 module Check.State where
 
 
+import Data.Map.Strict qualified as Map
+
+import Syntax.Term ( Term )
+
+import Check.Meta ( Meta )
+
 
 {-  The vars tracks what each variable in the scope is known to be.
     This way, the Environment tracks what is in scope and State tracks what it is.

@@ -13,6 +13,7 @@ data Token  = Upper'Var String
             | Period          --  .
             | Theorem         --  theorem
             | Axiom           --  axiom
+            | Axioms          --  axioms
             | Constants       --  constants
             | Aliases         --  aliases
             | Colon           --  :
@@ -47,6 +48,8 @@ data Token  = Upper'Var String
             --  layout
             | Pipe            --  |
             | Dash            --  -----
+            | Begin'Layout
+            | End'Layout
 
             | EOF
   deriving (Show, Eq)
