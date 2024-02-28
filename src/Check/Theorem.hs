@@ -52,18 +52,38 @@ check'theorem Theorem { assumptions = formulae
       check'conclusion claim conclusion
 
 
---  Checks all the derivations and possibly succeeds with the last Judgment.
---  QUESTION: Should this thing also return environment?
---            Yes, When we go check a sub-proof, we can do some unification whose effect should propagate.
-check'all :: [Judgment] -> Check Judgment
+check'proof :: Proof -> Check ()
+check'proof Proof{ assumption = Universal variables, derivations } = do
+  assignments <- mapM assign'fresh'const variables
+  let patch = Map.fromList assignments
+
+  local (\ env@Env{ var'scope = scope } -> env{ var'scope = scope `Map.union` patch }) (check'all derivations)
+  where assign'fresh'const :: String -> Check (String, Int)
+        assign'fresh'const var = do
+          c <- fresh'constant
+          addr <- store c
+          return (var, addr)
+
+check'proof Proof{ assumption = Formula bindings, derivations } = do
+  let named = filter is'named bindings -- [(Maybe String, Formula)]
+  let patch = Map.fromList named
+  local (\ env@Env{ judg'scope = scope } -> env{ judg'scope = scope `Map.union` patch }) (check'all derivations)
+  where is'named :: (Maybe String, a) -> Bool
+        is'named (Nothing, _) = False
+        is'named (Just _, _) = True
+
+
+check'all :: [Judgment] -> Check ()
 check'all [] = do
   throwError $! Empty'Proof Nothing
+
 check'all [judgment] = do
   check'judgment judgment
-check'all (judgment : judgments) = do
-  last <- check'judgment judgment
 
-  in'scope'of last (check'all judgments)
+check'all (judgment : judgments) = do
+  check'judgment judgment
+
+  in'scope'of judgment (check'all judgments)
 
 
 in'scope'of :: Judgment -> Check a -> Check a
@@ -72,7 +92,7 @@ in'scope'of judgment@(Sub'Proof Proof{ name = Just name }) m = do
 
   when (scope `Map.member` name) (throwError $! Name'Clash name)
 
-  local (\ env@Env{ judg'scope = scope } -> env{ judg'scope = Map.insert name judgment scope })
+  local (\ env@Env{ judg'scope = scope } -> env{ judg'scope = Map.insert name (Right judgment) scope }) m
 
 in'scope'of (Sub'Proof Proof{ name = Nothing }) m = do
   m
@@ -82,7 +102,7 @@ in'scope'of judgment@(Claim Claim{ name = Just name }) m = do
 
   when (scope `Map.member` name) (throwError $! Name'Clash name)
 
-  local (\ env@Env{ judg'scope = scope } -> env{ judg'scope = Map.insert name judgment scope })
+  local (\ env@Env{ judg'scope = scope } -> env{ judg'scope = Map.insert name (Right judgment) scope }) m
 
 in'scope'of (Claim Claim{ name = Nothing }) m = do
   m
@@ -117,22 +137,15 @@ check'conclusion der fm
   = throwError $! Wrong'Conclusion fm der
 
 
-check'judgment :: Judgment -> Check Judgment
---  TODO: If the Judgment is a Sub'Proof return the last judgment of that sub-proof.
---        If that is a sub-proof also, do that recursively.
---        At the end, there needs to be some judgment that is a claim.
-check'judgment Sub'Proof Proof{ name, assumption, derivations } = do
-  undefined
-check'judgment Claim c@Claim{ formula, justification } = do
-  --  TODO: Check this judgment.
-  justification `justifies` formula
+check'judgment :: Judgment -> Check ()
+check'judgment (Sub'Proof p@Proof{ name, assumption, derivations }) = do
+  check'proof p
 
-  return c
+check'judgment (Claim c@Claim{ formula, justification }) = do
+  justification `justifies` formula
 
 
 justifies :: Justification -> Formula -> Check ()
---  QUESTION: Should this function return a unifying substitution
---            or should it just apply the substitution and return unit?
 justifies Rule{ kind = rule, on = identifiers } fm = do
   judgments <- mapM id'to'jud identifiers
   
@@ -181,6 +194,12 @@ justifies (Induction { on = identifiers }) fm = do
 
   undefined
 
+justifies (Substitution{ on, using }) fm = do
+  undefined --  TODO: implement
+  --  using is a claim of equivalence (identifier that represents it, rather)
+  --  on    is a claim that proves something
+  --  fm    and `on` can unify under the equivalence
+
 
 id'to'jud :: String -> Check (Either Formula Judgment)
 id'to'jud identifier = do
@@ -202,58 +221,149 @@ are'compatible'with identifiers formulae = do
 
 
 is'compatible'with :: Formula -> Formula -> Check ()
-is'compatible'with formula conclusion = do
-  --  TODO: They should just unify together modulo α-equivalence.
-  --        This might result in a substitution.
-  undefined
+is'compatible'with fm fm' = do
+  fm `unify` fm'
+
+
+decompose'implication :: Formula -> Assumption -> Check ([Formula], Formula)
+decompose'implication _ (Universal _) = do
+  throwError $! Wrong'Assumptions "A sub-proof justifying implication can not have universal as its assumption."
+decompose'implication impl (Formula bindings) = do
+  decompose impl bindings
+    where decompose :: Formula -> [(Maybe String, Formula)] -> Check ([Formula], Formula)
+          decompose concl []
+            = return ([], concl)
+          decompose (Impl left right) ((_, fm) : bindings) = do
+            (prems, concl) <- decompose right bindings
+            return (left : prems, concl)
 
 
 check'rule :: Rule -> [Either Formula Judgment] -> Formula -> Check ()
-check'rule Impl'Intro judgments formula = do
-  undefined
+check'rule Impl'Intro [Right (Sub'Proof proof)] impl@(Impl _ _) = do
+  let Proof{ name, assumption, derivations } = proof
 
-check'rule Impl'Elim judgments formula = do
-  undefined
+  --  I need to check that whole proof.
+  --  I need to check that the last claim of the proof is identical to the conclusion
+  --    I suppose they could be not exactly identical but unifiable together
+  --    I might experiment with this later. For now they must be α-equivalent.
+  --  All the assumptions of of the proof must also be α-equivalent to the premises.
+  --    If there are many assumptions, there should be more implications nested in the concl.
+  
+  --  TODO: This is a complete nonsense!
+  --        At this point, the proof has already been checked.
+  --        I don't need to check it again. What would that achieve?
+  --        Instead, I just get the last derivation directly.
+  --        
+  case List.unsnoc derivations of
+    Nothing -> do
+      throwError $! undefined --  TODO: error!
+    Just (_, last) -> do
+      (premises, conclusion) <- decompose'implication impl assumption
 
-check'rule Conj'Intro judgments formula = do
-  undefined
+      check'assumptions assumption premises
+      check'conclusion last conclusion
 
-check'rule Conj'Elim judgments formula = do
-  undefined
+check'rule Impl'Elim [Right (Claim claim), Left pre] conclusion = do
+  let Claim{ formula } = claim
 
-check'rule Disj'Intro judgments formula = do
-  undefined
+  case formula of
+    Impl left right -> do
+      left `unify` pre
+      right `unify` conclusion
 
-check'rule Disj'Elim judgments formula = do
-  undefined
+    _ -> do
+      throwError $! Rule'Mismatch "The rule ==>-elim only accepts proofs of implications."
 
-check'rule Neg'Elim judgments formula = do
-  undefined
+check'rule Conj'Intro [Right (Claim claim'a), Right (Claim claim'b)] (And a' b') = do
+  --  the claim'a needs to claim a
+  let Claim{ formula = a } = claim'a
+  --  the claim'b needs to claim b
+  let Claim{ formula = b } = claim'b
 
-check'rule Equiv'Intro judgments formula = do
-  undefined
+  --  a and a' and also b and b' should be the same up to α-equivalence, I think
+  --  making them the same shouldn't probably cause any unification?
+  --  maybe it could?
+  --  I am just worried that this could be used to first justify something with the a'
+  --  and then to make it work for the conjunction, it will change something in the a'
+  --  the question is, can I change (later) something that would cause a problem? I don't know.And
 
-check'rule Equiv'Elim judgments formula = do
-  undefined
+  a `alpha'equivalent'to` a'
+  b `alpha'equivalent'to` b'
+
+check'rule Conj'Elim [Right (Claim Claim{ formula = a `And` b })] formula = do
+  if a `alpha'equivalent'to` formula || b `alpha'equivalent'to` formula
+  then return ()
+  else throwError $! Wrong'Justification Conj'Elim [Right (Claim Claim{ formula = a `And` b })] formula
+    --  TODO: make the error reporting better (different constructor), this is ridiculous!
+
+check'rule Disj'Intro [Right (Claim Claim{ formula })] (Or a b) = do
+  --  TODO: the formula might be a or it might be b
+  if formula `alpha'equivalent'to` a || formula `alpha'equivalent'to` b
+  then return ()
+  else throwError $! Wrong'Justification Disj'Intro [Right (Claim Claim{ formula })] (Or a b)
+
+check'rule Disj'Elim  [ Right (Claim Claim{ formula = Or a b })
+                      , Right (Sub'Proof Proof{ assumption = Formula [(_, a')], derivations = der'a })
+                      , Right (Sub'proof Proof{ assumption = Formula [(_, b')], derivations = der'b }) ] formula = do
+  --  The judgments are three things
+  --  the first one is a claim that a ∨ b
+  --  the second and third are proofs
+  --  both proofs have to justify the same thing and that thing is the formula
+  --  all three are equivalent up to the α-renaming
+  --  the first proof assumes exactly a
+  --  the second proof assumes exactly b
+
+  a `alpha'equivalent'to` a'
+  b `alpha'equivalent'to` b'
+
+  goal'a <- last'derivation der'a
+  goal'b <- last'derivation der'b
+
+  goal'a `alpha'equivalent'to` goal'b
+  goal'b `alpha'equivalent'to` formula
+
+check'rule Neg'Elim [ Right (Claim Claim{ formula = a })
+                    , Right (Claim Claim{ formula = a' }) ] F.False = do
+  a `is'negated` a'
+
+check'rule Equiv'Intro  [ Right (Claim Claim{ formula = Impl a b })
+                        , Right (Claim Claim{ formula = Impl b' a' }) ] formula = do
+  a `alpha'equivalent'to` a'
+  b `alpha'equivalent'to` b'
+
+check'rule Equiv'Elim [Right (Claim Claim{ formula = Eq a b })] (Impl x y) = do
+  --  Either  a <==> b justifies a ==> b
+  --  or      a <==> b justifies b ==> a
+
+  unless  (a `alpha'equivalent'to` x && b `alpha'equivalent'to` y)
+          ||
+          (a `alpha'equivalent'to` y && b `alpha'equivalent'to` x)
+  throwError $! undefined --  TODO: error!
 
 check'rule True'Intro [] Term.True = do
   return ()
 
-check'rule Proof'By'Contradiction judgments formula = do
+check'rule Proof'By'Contradiction [Right (Sub'Proof Proof{ assumption = Formula [(_, Not a)], derivations })] formula = do
   m <- asks mode
   case m of
     Intuitionistic -> do
       throwError Disallowed'By'Contradiction
     Classical -> do
-      undefined
+      last <- last'derivation derivations
+      case last of
+        F.False -> do
+          a `alpha'equivalent'to` formula
+        _ -> do
+          throwError $! undefined --  TODO: error!
 
-check'rule Contra'Elim judgments formula = do
-  undefined
+check'rule Contra'Elim [Right (Claim Claim{ formula = F.False })] formula = do
+  return ()
 
 check'rule Forall'Intro judgments formula = do
   undefined
 
 check'rule Forall'Elim judgments formula = do
+  --  NOTE: This one is interesting, because it can introduce implicit universals.
   undefined
 
 check'rule Exists'Introduction judgments formula = do
@@ -262,12 +372,21 @@ check'rule Exists'Introduction judgments formula = do
 check'rule Exists'Elimination judgments formula = do
   undefined
 
-check'rule Repetition judgments formula = do
-  undefined
+check'rule Repetition [Right (Claim Claim{ formula = fm })] formula = do
+  formula `alpha'equivalent'to` fm
 
+--  TODO: I need to implement support for this.
 check'rule (Custom name) judgments formula = do
   undefined
 
 check'rule rule judgments formula = do
   throwError $! Wrong'Justification rule judgments formula
 
+
+last'derivation :: [Judgment] -> Check Judgment
+last'derivation derivations = do
+  case List.unsnoc derivations of
+    Nothing -> do
+      throwError $! undefined
+    Just (_, last) -> do
+      return last
