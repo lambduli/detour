@@ -65,6 +65,7 @@ library
         Check.Check
         Check.Environment
         Check.Error
+        Check.Meta
         Check.Module
         Check.State
         Check.Theorem
@@ -74,16 +75,16 @@ library
         Parser.Token
 
         Syntax.Assumption
+        Syntax.Claim
         Syntax.Definition
         Syntax.Formula
         Syntax.Judgment
         Syntax.Justification
         Syntax.Module
+        Syntax.Proof
         Syntax.Relation
         Syntax.Term
         Syntax.Theorem
-
-        Unification.Meta
 
     -- Modules included in this library but not exported.
     -- other-modules:

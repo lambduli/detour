@@ -9,7 +9,7 @@ data Justification  = Rule  { kind :: Rule, on :: [String] }
                     | Unproved
                     | Induction { on :: [String] }
                     | Substitution { on :: Term, using :: String }
-                    | Case { on :: [String] }
+                    | Case { on :: String, proofs :: [(Proof, String)] }  --  The String is the name of the rule used.
   deriving (Show, Eq)
 
 
