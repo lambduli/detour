@@ -649,3 +649,281 @@ instantiation of the ∃ ℕ₃.
 
 I don't know if I like this.
 
+
+
+_____
+
+So now, I can do the following:
+
+```
+theorem schema modus-ponens for any proposition A, B : A, A ==> B ⊢ B .
+```
+
+
+--------------------
+
+I think I am starting to understand why there's `syntax` section separate from judgments.
+
+Using syntax we define the theory. The judgments serve to reason about that theory in a meta-theoretical way/level.
+
+That's probably why in SASyLF we don't have judgments over judgments. Judgments are supposed to reason about propositions from the theory.
+
+
+So this raises a question. Can my framework handle judgments over judgments?
+
+```
+syntax:
+
+ℕ = Z
+  | S ℕ
+
+--  Is implicitly understood as:
+
+inductive proposition ℕ:
+  axiom nat-z : ℕ(Z)
+  axiom nat-s : ∀ n ℕ(n) => ℕ(S(n))
+
+--  So we get induction just fine.
+
+
+--  To the point.
+judgment Sum(ℕ₁, ℕ₂, ℕ₃):
+
+rule schema sum-z:  |
+                    |------------------- sum-z
+                    | Sum( Z , ℕ , ℕ )
+
+rule schema sum-s:  | Sum( ℕ₁ , ℕ₂ , ℕ₃ )
+                    |--------------------------- sum-s
+                    | Sum( S(ℕ₁) , ℕ₂ , S(ℕ₃) )
+
+
+--  Can I now do something like this:
+
+judgment Same(Sum, Sum):
+
+rule schema same: | Sum(ℕ₁, ℕ₂, ℕ₃)
+                  | Sum(ℕ₄, ℕ₅, ℕ₃)
+                  |----------------------------------------- same
+                  | Same(Sum(ℕ₁, ℕ₂, ℕ₃), Sum(ℕ₄, ℕ₅, ℕ₃))
+```
+
+I think I can see how this would not make much sense.
+
+It is an interesting thought, however. But it doesn't seem to be making sense.
+
+
+------
+
+There's another.
+
+Suppose that I want to have a theory where there are numbers and also objects/terms that represent addition.
+
+So I put the `Sum(ℕ, ℕ, ℕ)` at the syntax level.
+
+I can then have a judgment outside the language/theory about the addition.
+I would have the usual `Sum(ℕ, ℕ, ℕ)` and would use it as a basis for the evaluation semantics.
+
+That's what I did in SASyLF.
+
+
+
+However, this raises another interesting question.
+What if I express, in the language/syntax, the notion of reductions?
+
+What I mean is—the language doesn't have just numbers and two operations. It now has another operator "single-step-arrow" `-->` that relates two arithmetic expressions. We wan't to make sure that it always relates them in a correct way.
+
+I need to make a judgment for that step and I would use that judgment as a basis for how the expression `AE --> AE'` is evaluated.
+
+
+This is an interesting thought. We can keep adding constructs to the language that make it a different language. From a language of arithmetics to the language for reasoning about arithmetics. The interesting part is that it doesn't seem to require much more work. We use the judgments we originally defined for reasoning at the meta level as a basis for the evaluation of the in-language constructs/expressions.
+
+
+
+-------
+
+## Checking SCHEMATA
+
+How do I deal with rule schemata and perhaps theorem schemata?
+
+Let's take it one by one.
+
+
+A rule schema for a proposition/syntax:
+
+```
+rule schema nat-s for any object x: | ℕ( x )
+                                    |------------ nat-s
+                                    | ℕ( S(x) )
+```
+
+How do I deal with this?
+It seems to me that it should be pretty straightforward.
+I know that the `x` is universally quantified.
+So I can use this rule to justify `ℕ(S(x))` for `x` being a specific term,
+also `x` being an implicit universal variable (now introduced or already present),
+also `x` being an explicit universal variable (they are effectively constants),
+when given `ℕ(x)`.
+
+In a way, this works like a ∀-elim together with ==>-elim.
+
+
+
+A second-order rule schema for a judgment:
+
+```
+judgment A ≡ B for any proposition A, B:
+
+rule schema de-morgan-1 for any proposition A, B :  |
+                                                    |--------------------- de-morgan-1
+                                                    | ¬(A ∨ B) ≡ ¬A ∧ ¬B
+
+rule schema de-morgan-2 for any proposition A, B :  |
+                                                    |--------------------- de-morgan-2
+                                                    | ¬(A ∧ B) ≡ ¬A ∨ ¬B
+
+rule schema equivalence-1 for any proposition A, B :  | A ≡ B
+                                                      | A
+                                                      |----------- equivalence-1
+                                                      | B
+
+rule schema equivalence-2 for any proposition A, B :  | A ≡ B
+                                                      | A
+                                                      |----------- equivalence-2
+                                                      | B
+
+
+```
+
+To use these as `by rule de-morgan-1 on _, _` we need to perform a little bit more complicate unification. Here is a little bit more complete example:
+
+```
+...
+
+-- we must prove `¬X(a, b) ∧ ¬Y(g, h)`
+
+p1 : ¬(X(a, b) ∨ Y(g, h))  by repetition on ... -- it was proven somehow
+
+p2 : ¬(X(a, b) ∨ Y(g, h)) ≡ ¬X(a, b) ∧ ¬Y(g, h)  by rule de-morgan-1 for X(a, b), Y(g, h)
+--  maybe I don't even need the `for ...` part?
+
+--  and here is the unrelated, but interesting part
+
+con : ¬X(a, b) ∧ ¬Y(g, h)  by rule equivalence-1 on p2, p1
+
+--  here comes the coolest part
+--  what if this theorem is supposed to prove some more complicated formula
+--  that contains `¬X(a, b) ∧ ¬Y(g, h)` somewhere in it
+--  we don't want to prove `¬X(a, b) ∧ ¬Y(g, h)` directly
+--  or rather we don't want to prove the conclusion directly
+--  we can use the substitution
+
+con' : ¬X(a, b) ∧ ¬Y(g, h)  by substituting p1 for ¬X(a, b) ∧ ¬Y(g, h) using p2
+-- this might not read the right way
+-- so maybe
+-- ¬X(a, b) ∧ ¬Y(g, h)  by substitution on p1 using p2
+
+
+--  this works for more complicated formulae as well
+
+proven : [¬(X(a, b) ∨ Y(g, h))] ==> [¬(X(a, b) ∨ Y(g, h))]  by ...
+
+con'' : [¬X(a, b) ∧ ¬Y(g, h)] ==> [¬X(a, b) ∧ ¬Y(g, h)]  by substituting p1 for ¬X(a, b) ∧ ¬Y(g, h) using p2
+
+-- so with the alternative syntax this would be
+-- [¬X(a, b) ∧ ¬Y(g, h)] ==> [¬X(a, b) ∧ ¬Y(g, h)] substitution on proven using p2
+
+```
+
+**The unification part**
+This is the main topic of this example.
+As far as I can tell, if I only do syntactic unification, I can go even higher than just secon-order. It will still be decidable. I think this might be what the *Sireum Logika* documentation means when they say they consider propositions and function as uninterpreted. This makes dealing with the unification much easier.
+
+So I think I will be able to allow theorem schemata abstracting over some propositions too.
+
+
+
+**The substitution part**
+The justification by substitution replaces all the proofs of the substituted sub-formula for the `p1` in the claim. That is, if the proof of equivalence `p2` is valid and in the shape of "<whatever p1 claims> ≡ <the formula>" or "<the formula> ≡ <whatever p1 claims>".
+
+I could make it work for both cases. Alternatively, I could say that it only works on one direction and rely on the inference rule deriving the symmetry of equivalence. That is also ok.
+
+
+
+A second-order theorem schema for a:
+
+```
+theorem schema something for proposition A, B : A ≡ B
+                                              , A(α)
+                                              ⊢ B(α)
+| p1 : A ≡ B
+| p2 : A(α)
+|---------------------
+|
+| B(α)  by substitution on p2 using p1
+| -- NOTE: This should work. A ≡ B says they are the same on all arguments.
+```
+
+This might be straightforward. I am not sure yet.
+It seems that I just must make sure that it is consistent with the theory.
+
+Then, I just substitute the name of the predicate/function in the proven part with the other side of the equivalence. I think that the engine should identify which part needs to be replaced with the other side of the equvalence on its on. That would make sense.
+
+How do I implement it?
+Maybe, I try to unify the proven and the claim and when I can't unify two things (only then) I see whether I can use the equivalence (in any direction) to make them unify.
+In sucha a case, the two things (that wouldn't unify before) must be exactly equal to those two things in the equivalence (up to α-renaming, I think).
+
+This means I can use the substitution to justify things like:
+
+```
+proven : A ∧ ¬B ==> ¬B ∨ A  by ...
+
+eq : A ≡ B
+
+conclusion : B ∧ ¬A ==> ¬A ∨ B  by substitution on proven using eq
+```
+
+I think this makes sense. The equivalence allows me to replace `A` with `B` and `B` with `A` wherever I need. That is my understanding.
+
+
+------
+
+```
+proposition ℕ(o) for any object o:
+
+rule nat-z: |
+            |------
+            | ℕ( Z )
+```
+
+Alternatively, I could embrace the "syntax" way and define it using a grammar:
+
+```
+syntax:
+
+ℕ -> Z
+  -> S ( ℕ )
+```
+
+Would I then be able to do this too?
+
+```
+AE  -> ( + AE AE )
+    -> ( * AE AE )
+    -> ℕ
+```
+
+I know there's an issue with ℕ ==> AE
+if I have a ℕ, I also have AE.
+I understand that there's a problem with "the missing constructor"
+but what if I use the "production rule number" as a sort of hidden constructor?
+This way if I am writing Z or S(Z) it depends on how do I want to parse it.
+If I am parsing it as ℕ, it is clear.
+If I am parsing it as AE, I know what it is as well.
+
+There could be an issue if AE contains two rules like this, but that would be
+a R/R conflict in the grammar, I am sure.
+
+But logic-wise, it shouldn't be a problem. Or so I have heard.
+
+------

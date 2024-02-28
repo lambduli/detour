@@ -10,7 +10,7 @@ inductive ℕ, Nat, N, M  = Z
                         | S(ℕ)
 
 -- This should amount to defining something like the following:
-inductive ℕ, Nat, N, M where
+inductive ℕ, Nat, N, M :
   axiom nat-z : ℕ(Z)
   axiom nat-s : ∀ n ℕ(n) => ℕ(S(n))
 

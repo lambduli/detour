@@ -11,7 +11,31 @@ rule schema eq-not-and for any proposition A, B : |
 
 -------------------------------------------------------------------------------
 
-judgment ℕ(o) for any object o:
+--  Alternatively, I could embrace the "syntax" way and define it using a grammar:
+
+syntax:
+
+ℕ -> Z
+  -> S ( ℕ )
+
+--  Would I then be able to do this too?
+
+AE  -> ( + AE AE )
+    -> ( * AE AE )
+    -> ℕ
+
+--  I know there's an issue with ℕ ==> AE
+--  if I have a ℕ, I also have AE.
+--  I understand that there's a problem with "the missing constructor"
+--  but what if I use the "production rule number" as a sort of hidden constructor?
+--  This way if I am writing Z or S(Z) it depends on how do I want to parse it.
+--  If I am parsing it as ℕ, it is clear.
+--  If I am parsing it as AE, I know what it is as well.
+--
+--  There could be an issue if AE contains two rules like this, but that would be
+--  a R/R conflict in the grammar, I am sure.
+
+proposition ℕ(o) for any object o:
 
 rule nat-z: |
             |------
