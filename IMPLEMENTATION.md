@@ -457,6 +457,54 @@ I can write this explicitly too, but I won't.
 
 
 -------------------------------------------------------------------------------
+
+There's a big question whether I can do the following:
+
+```
+rule schema subst1 for any proposition A, B and any object x:
+  | A ≡ B
+  | A(x)
+  |--------------
+  |
+  | B(x)
+```
+
+First, is it ok to have just a free-form rule outside of any judgment?
+
+What would that mean for induction on judgments?
+I think it might actually not be a problem at all.
+
+For induction—when the rule does not claim any specific inductive judgment, there does not seem to be any reason for worries.
+
+For the "free-floating" aspect of the rule—I think that's also fine.
+In this case, I can't really have some ad-hoc judgment, because I don't even know what the B(x) is going to be.
+
+I think that in second-order logic this could just be an axiom:
+```
+∀ A ∀ B (A ≡ B) ==> ∀ x A(x) ==> B(x)
+```
+
+So I guess it should be ok to have it as a judgment-less rule schema.
+
+
+Then there's the question of the syntax.
+The `for any proposition A, B and any object x`.
+
+I think this could work fine. Alternatively, since this is quite a bit complicated form already, maybe I could just go all the way and do something like
+
+```
+rule schema subst1 ∀ A ∀ B ∀ x  : | A ≡ B
+                                  | A(x)
+                                  |--------------
+                                  |
+                                  | B(x)
+```
+
+But I can't really express that `for any object x such that ℕ(x)` part.
+So that would be a shame to give up.
+
+
+-------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 
 The (first-order) theorem schemas over objects are fine.
@@ -927,3 +975,44 @@ a R/R conflict in the grammar, I am sure.
 But logic-wise, it shouldn't be a problem. Or so I have heard.
 
 ------
+
+
+
+## Back to Unification and So On
+
+Is this legal?
+
+```
+| any a
+|---------------------------
+|
+| e : ∃ x P(x)  by rule repetition on ... -- it's somewhere in the outer scope
+|
+| ex :  | P(a)
+|       |--------------
+|       |
+
+... by ∃-elim on e, ex
+```
+
+Is this ok at all?
+
+I think that if it was an implicit universal (the `a`) it would be ok. It would just mean that when I introduced it I actually meant to write a specific term (a constant) but it wasn't apparent. The implicit `a` would just be a different name for a certain specific object.
+
+
+
+OK, so here's what it is.
+
+Strictly speaking, it's not OK and it wouldn't be OK for the implicit universal either.
+There's the well-formedness condition. It prohibits the use of any variable already in scope.
+
+However, it is not strictly necessary for us to reject it. The proof above could just mean that the line `ex : ...` (silently) shadows the original `a` within the scope of that sub-proof. The variable `a` would get assigned a new constant, temporarily.
+
+So even if `a` is implicit universal, it wouldn't mean that the `a` in the outer scope would suddenly become just a name for a specific object. They would be two distinct variables. The meaning of the original `a` would not be changed once we leave the inner scope.
+
+However, this could clearly lead to confusion. So it would be much better if none of the variables in the assumption is already present in the environment.
+To be more specific, none of those variables that correspond to "instantiated" ∃-binders.
+
+This can get easily tested. Once I use unification to figure out the correct binder-assignments I will check that none of the terms on the RHS are variables already in scope. I will also check that all those terms are, in fact, variables and not some more complex terms—like function applications.
+
+So I think this is it.

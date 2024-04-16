@@ -15,9 +15,11 @@ import Parser.Token qualified as Token
 import Syntax.Term ( Term )
 
 
+-- import Debug.Trace ( trace, traceM )
+
 }
 
-%encoding "iso-8859-1"
+%wrapper "monadUserState"
 
 
 $upper                = [A-Z]
@@ -26,169 +28,310 @@ $lower                = [a-z]
 
 $digit                = [0-9]
 
-@lowerident           = [$lower $digit] [$lower \- \_ $digit \']*
+$character            = [!-\' \*-\+ \--Z \\ \^-z \| \~ \¡-\ʯ \Ͱ-\⏿#\ᶜ \⟰-\⟿ \⤀-\⫿ \Ⱡ-\⳿ \꜠-\ꟿ]
 
-@upperident           = $upper [$lower $upper \- \_ $digit \']*
+-- $special              = [\∀ \∃ \= \> \< \¬ \∧ \∨ \⊥ \⊤ \~ \( \) \{ \} \[ \] \' \- \_ \" \| ]
 
-@number               = [$digit]+
+@ident                = [$lower $upper $digit $character]+
 
-$space                = [\ \t\f\v\n]
+@line                 = \|[\-]+
+
+$space                = [\ \t\f\v]
+
+$newline              = [\n]
+
+$any                  = [\x00-\x10ffff]
 
 
 detour :-
 
+
 $space+                 ;
 
-"%".*\n                 ;
+"--".*                  ;
 
-"ᶜ"                     { \_ -> token Token.Constant'Before }
-
-"("                     { \_ -> token Token.Paren'Open }
-")"                     { \_ -> token Token.Paren'Close }
-"["                     { \_ -> token Token.Box'Open }
-"]"                     { \_ -> token Token.Box'Close }
-"{"                     { \_ -> token Token.Bracket'Open }
-"}"                     { \_ -> token Token.Bracket'Close }
-
--- keywords
-","                     { \_ -> token Token.Comma }
-"."                     { \_ -> token Token.Period }
-"theorem"               { \_ -> token Token.Theorem }
-"constants"             { \_ -> token Token.Constants }
-"axioms"                { \_ -> token Token.Axioms }
-"aliases"               { \_ -> token Token.Aliases }
-":"                     { \_ -> token Token.Colon }
-"⊢"                     { \_ -> token Token.Turnstile }
-"by"                    { \_ -> token Token.By }
-"rule"                  { \_ -> token Token.Rule }
-"induction"             { \_ -> token Token.Induction }
-"unproved"              { \_ -> token Token.Unproved }
-"on"                    { \_ -> token Token.On }
-"all"                   { \_ -> token Token.All }
-
-"="                     { \_ -> token Token.Equal }
-
--- logical connectives
-"⊤"                     { \_ -> token Token.Tautology }
-"TRUE"                  { \_ -> token Token.Tautology }
-"True"                  { \_ -> token Token.Tautology }
-"Tautology"             { \_ -> token Token.Tautology }
-"TAUTOLOGY"             { \_ -> token Token.Tautology }
+-- "{-"$any*"-}"           ;
 
 
-"⊥"                     { \_ -> token Token.Contradiction }
-"FALSE"                 { \_ -> token Token.Contradiction }
-"FALSE"                 { \_ -> token Token.Contradiction }
-"CONTRADICTION"         { \_ -> token Token.Contradiction }
-"Contradiction"         { \_ -> token Token.Contradiction }
+<0> {
 
-"∀"                     { \_ -> token Token.Forall }
-"forall"                { \_ -> token Token.Forall }
+  @line                   { emit Token.Dash }
+  "module"                { emit Token.Module }
 
-"∃"                     { \_ -> token Token.Exists }
-"exists"                { \_ -> token Token.Exists }
+  "ᶜ"                     { emit Token.Constant'Before }
 
-"¬"                     { \_ -> token Token.Negate }
-"NOT"                   { \_ -> token Token.Negate }
+  "("                     { emit Token.Paren'Open }
+  ")"                     { emit Token.Paren'Close }
+  "["                     { emit Token.Box'Open }
+  "]"                     { emit Token.Box'Close }
+  "{"                     { emit Token.Bracket'Open }
+  "}"                     { emit Token.Bracket'Close }
 
-"∧"                     { \_ -> token Token.And }
-"&&"                    { \_ -> token Token.And }
-"&"                     { \_ -> token Token.And }
-"AND"                   { \_ -> token Token.And }
+  -- keywords
+  ","                     { emit Token.Comma }
+  -- "."                     { emit Token.Period }
+  "theorem"               { emit Token.Theorem }
+  "constants"             { emit Token.Constants }
+  -- "axioms"                { emit Token.Axioms }
+  "axiom"                 { emit Token.Axiom }
+  "aliases"               { emit Token.Aliases }
+  ":"                     { emit Token.Colon }
+  "⊢"                     { emit Token.Turnstile }
+  "by"                    { emit Token.By }
+  "rule"                  { emit Token.Rule }
+  "induction"             { emit Token.Induction }
+  "unproved"              { emit Token.Unproved }
+  "on"                    { emit Token.On }
+  "for"                   { emit Token.For }
+  "all"                   { emit Token.All }
+  "any"                   { emit Token.All }
+  "some"                  { emit Token.Some }
+  "object"                { emit Token.Object }
+  "objects"               { emit Token.Object }
+  "proposition"           { emit Token.Proposition }
+  "propositions"          { emit Token.Proposition }
 
-"∨"                     { \_ -> token Token.Or }
-"||"                    { \_ -> token Token.Or }
-"|"                     { \_ -> token Token.Or }
-"OR"                    { \_ -> token Token.Or }
+  "="                     { emit Token.Equal }
 
-"=>"                    { \_ -> token Token.Implication }
-"==>"                   { \_ -> token Token.Implication }
-"⟹"                     { \_ -> token Token.Implication }
-
-"<=>"                   { \_ -> token Token.Equivalence }
-"<==>"                  { \_ -> token Token.Equivalence }
-"⟺"                     { \_ -> token Token.Equivalence }
+  -- logical connectives
+  "⊤"                     { emit Token.Tautology }
+  "TRUE"                  { emit Token.Tautology }
+  "True"                  { emit Token.Tautology }
+  "Tautology"             { emit Token.Tautology }
+  "TAUTOLOGY"             { emit Token.Tautology }
 
 
+  "⊥"                     { emit Token.Contradiction }
+  "FALSE"                 { emit Token.Contradiction }
+  "FALSE"                 { emit Token.Contradiction }
+  "CONTRADICTION"         { emit Token.Contradiction }
+  "Contradiction"         { emit Token.Contradiction }
 
-@lowerident             { emit Token.Lower'Var }
+  "∀"                     { emit Token.Forall }
+  "forall"                { emit Token.Forall }
 
-@upperident             { emit Token.Upper'Var }
+  "∃"                     { emit Token.Exists }
+  "exists"                { emit Token.Exists }
 
-@number                 { emit Token.Number }
+  "¬"                     { emit Token.Negate }
+  "NOT"                   { emit Token.Negate }
 
+  "∧"                     { emit Token.And }
+  "&&"                    { emit Token.And }
+  "&"                     { emit Token.And }
+  "AND"                   { emit Token.And }
+
+  "∨"                     { emit Token.Or }
+  "OR"                    { emit Token.Or }
+
+  "=>"                    { emit Token.Implication }
+  "==>"                   { emit Token.Implication }
+  "⟹"                     { emit Token.Implication }
+
+  "<=>"                   { emit Token.Equivalence }
+  "<==>"                  { emit Token.Equivalence }
+  "⟺"                     { emit Token.Equivalence }
+
+  "_"                     { emit Token.Underscore }
+
+  "|"                     { pipe'line }
+
+
+  @ident                  { emit' Token.Ident }
+
+  -- @lowerident             { emit' Token.Lower'Var }
+
+  -- @upperident             { emit' Token.Upper'Var }
+
+  -- @number                 { emit Token.Number }
+
+  $newline                { \ _ _ -> {- traceM "newline at <0>, going <behind>" >> -} alexSetStartCode behind >> alexMonadScan }
+
+}
+
+
+<behind> {
+
+  $newline              { end'layout }
+
+  @line                 { \ ai l -> alexSetStartCode 0 >> emit Token.Dash ai l }
+
+  "|"                   { pipe'line }
+  
+  ()                    { end'layout }
+
+}
+
+
+<eof> ()                { do'EOF }
 
 {
 
+end'layout :: AlexInput -> Int -> Alex Token
+end'layout (AlexPn _ line col, _, _, str) len = do
+  s@AlexUserState{ layouts } <- alexGetUserState
 
-token :: Token -> Lexer Token
-token t = return t
+  -- traceM ("trace [end'layout] line " ++ show line ++ " column " ++ show col ++ " layouts " ++ show layouts)
 
+  --  TODO: all of this is wrong
+  --        I can't just pop all of the layouts but only emit one token!!!
+  
+  --        I think I should do this:
+  --          if I should pop a layout
+  --          I pop it
+  --          I stay at <behind>
+  --          I return one end token
+  --          I continue scanning
+  --          that should lead to this function getting called again
+  --          repeating until I can't and shouldn't pop
+  --          then I switch to <0>
 
-emit :: (String -> Token) -> String -> Lexer Token
-emit mk't str = return (mk't str)
+  case layouts of
+    [] -> do
+      alexSetStartCode 0
+      alexMonadScan
 
-
-
-
-
-type Lexer a = StateT Lexer'State (Except (String, Int)) a
-
-
-data AlexInput = Input
-  { ai'line'no   :: !Int
-  , ai'col'no    :: !Int
-  , ai'last'char :: !Char
-  , ai'input     :: String }
-  deriving (Eq, Show)
-
-
-data Lexer'State = Lexer'State
-  { lexer'input   :: !AlexInput
-  , constants     :: ![String]
-  , scope         :: ![String]
-  , aliases       :: ![(String, Term)] }
-  deriving (Eq, Show)
-
-
-initial'state :: String -> Lexer'State
-initial'state s = Lexer'State
-  { lexer'input       = Input
-                        { ai'line'no    = 1
-                        , ai'col'no     = 1 
-                        , ai'last'char  = '\n'
-                        , ai'input      = s }
-  , constants         = []
-  , scope             = []
-  , aliases           = [] }
+    (l : ls) -> do
+      -- alexSetStartCode 0
+      if col <= l
+      then do
+        alexSetUserState s{ layouts = ls }
+        return Token.End'Layout
+      else do
+        --  This doesn't make sense. I do nothing.
+        --  Maybe I should raise an error or something.
+        -- sc <- alexGetStartCode
+        -- alexError ("unthinkable  I am on line " ++ show line ++ " column " ++ show col ++ " the start code is " ++ show sc ++ "  layouts are " ++ show layouts ++  " and the token should be " ++ take len str)
+        alexSetStartCode 0
+        alexMonadScan
 
 
--- The functions that must be provided to Alex's basic interface
-alexGetByte :: AlexInput -> Maybe (Word8, AlexInput)
-alexGetByte input@Input{ ai'input }
-  = advance <$> uncons ai'input
-    where
-      advance :: (Char, String) -> (Word8, AlexInput)
-      advance ('\n', rest)
-        = ( fromIntegral (ord '\n')
-          , Input { ai'line'no    = ai'line'no input + 1
-                  , ai'col'no     = 1
-                  , ai'last'char  = '\n'
-                  , ai'input      = rest } )
 
-      advance ('∨', rest)
-        = ( fromIntegral (ord '|')
-          , Input { ai'line'no    = ai'line'no input
-                  , ai'col'no     = ai'col'no input + 1
-                  , ai'last'char  = '|'
-                  , ai'input      = rest } )
-        
-      advance (c, rest)
-        = ( fromIntegral (ord c)
-          , Input { ai'line'no    = ai'line'no input
-                  , ai'col'no     = ai'col'no input + 1
-                  , ai'last'char  = c
-                  , ai'input      = rest } )
+popAllAfter :: Int -> Alex ()
+popAllAfter col = do
+  s@AlexUserState{ layouts } <- alexGetUserState
+
+  case layouts of
+    [] -> do
+      return ()
+
+    (l : ls) -> do
+      if col < l
+      then do
+        alexSetUserState s{ layouts = ls }
+        popAllAfter col
+      else return ()
+
+
+emit :: Token -> AlexInput -> Int -> Alex Token
+emit t (AlexPn _ line col, _, _, _) _ = do
+  s@AlexUserState{ layouts } <- alexGetUserState
+  sc <- alexGetStartCode
+  -- traceM ("trace [emit] line " ++ show line ++ " column " ++ show col ++ " layouts " ++ show layouts ++ " start code " ++ show sc ++ "  | start code for behind is " ++ show behind)
+
+  return t
+
+
+emit' :: (String -> Token) -> AlexInput -> Int -> Alex Token
+emit' mk't (AlexPn _ line col, ch, bytes, input) len  = do
+  s@AlexUserState{ layouts } <- alexGetUserState
+  sc <- alexGetStartCode
+  -- traceM ("trace [emit'] line " ++ show line ++ " column " ++ show col ++ " layouts " ++ show layouts ++ " start code " ++ show sc ++ "  | start code for behind is " ++ show behind)
+
+  return $! mk't (take len input)
+
+
+alexEOF = handle'EOF
+
+
+data AlexUserState = AlexUserState{ layouts     :: ![Int]
+                                  , constants   :: ![String]
+                                  , bound       :: ![[String]]
+                                  , consts      :: ![[String]]
+                                  , aliases     :: ![(String, Term)] }
+
+
+alexInitUserState :: AlexUserState
+alexInitUserState = AlexUserState { layouts           = []
+                                  , constants         = []
+                                  , bound             = []
+                                  , consts            = []
+                                  , aliases           = [] }
+
+
+pipe'line :: AlexInput -> Int -> Alex Token
+pipe'line (AlexPn _ line col, _, _, _) _ = do
+  s <- alexGetUserState
+  let ls = layouts s
+
+  sc <- alexGetStartCode
+  
+  -- traceM ("trace [pipe'line] line " ++ show line ++ " column " ++ show col ++ " layouts " ++ show ls ++ " sc " ++ show sc)
+
+  case ls of
+    [] -> do
+      --  No layout seen yet. Acting as if the current position is larger than the current layout.
+      -- traceM ("line " ++ show line ++ " column " ++ show col ++ " layouts " ++ show ls ++ " sc " ++ show sc)
+      -- traceM ("trace [pipe'line #0] line " ++ show line ++ " column " ++ show col ++ " layouts " ++ show ls ++ " sc " ++ show sc)
+      alexSetUserState s{ layouts = col : ls }
+      return Token.Begin'Layout
+
+    (p : _) -> do
+      if col == p
+      then do
+        -- traceM ("trace [pipe'line #1] line " ++ show line ++ " column " ++ show col ++ " layouts " ++ show ls ++ " sc " ++ show sc)
+        alexSetStartCode 0
+        alexMonadScan
+      else  if col > p
+            then do
+              -- traceM ("trace [pipe'line #2] line " ++ show line ++ " column " ++ show col ++ " layouts " ++ show ls ++ " sc " ++ show sc)
+              alexSetUserState s{ layouts = col : ls }
+              return Token.Begin'Layout
+            else do
+              -- traceM ("trace [pipe'line #3] line " ++ show line ++ " column " ++ show col ++ " layouts " ++ show ls ++ " sc " ++ show sc)
+              -- alexSetStartCode behind
+              alexMonadScan
+
+
+handle'EOF :: Alex Token
+handle'EOF = do
+  s <- alexGetUserState
+  let ls = layouts s
+  if not (null ls)
+  then do
+    alexSetStartCode eof
+    alexMonadScan
+  else do
+    return Token.EOF
+
+
+do'EOF :: AlexInput -> Int -> Alex Token
+do'EOF _ _ = do
+  --  So there's nothing on the input but we might still have some layouts open.
+  s <- alexGetUserState
+  let ls = layouts s
+
+  case ls of
+    [] -> do
+      --  No layout open. We can emit EOF.
+      return Token.EOF
+
+    (p : ps) -> do
+      --  We close this one and keep going.
+      alexSetUserState s{ layouts = ps }
+      return Token.End'Layout
+
+
+alexGetCol :: Alex Int
+alexGetCol = do
+  ((AlexPn _ _ c), _, _, _) <- alexGetInput
+  return c
+
+
+alexGetLine :: Alex Int
+alexGetLine = do
+  ((AlexPn _ l _), _, _, _) <- alexGetInput
+  return l
 
 
 }

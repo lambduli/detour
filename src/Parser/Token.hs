@@ -2,18 +2,20 @@ module Parser.Token where
 
 
 --  TODO: DO IT!
-data Token  = Upper'Var String
-            | Lower'Var String
-            | Number String
+data Token  = Ident String
+            -- | Upper'Var String
+            -- | Lower'Var String
+            -- | Number String
 
             | Constant'Before
+            | Module
 
             --  keywords
             | Comma           --  ,
             | Period          --  .
             | Theorem         --  theorem
             | Axiom           --  axiom
-            | Axioms          --  axioms
+            -- | Axioms          --  axioms
             | Constants       --  constants
             | Aliases         --  aliases
             | Colon           --  :
@@ -23,6 +25,10 @@ data Token  = Upper'Var String
             | Induction       --  induction
             | On              --  on
             | All             --  all any
+            | For             --  for
+            | Some            --  some
+            | Object          --  object / objects
+            | Proposition     --  proposition / propositions
             | Unproved
 
             | Tautology       --  ⊤

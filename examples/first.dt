@@ -2,7 +2,7 @@
 --  It is a theorem schema and the proof is actually a proof schema.
 --  The syntax "for A, B" tells the engine that A and B are not actual propositions.
 --  Instead, they are a "second-order" variables standing for some nullary propositions.
-theorem schema modus-ponens for A, B : A, A ==> B ⊢ B .
+theorem schema modus-ponens for propositions A, B : A, A ==> B ⊢ B .
 _ : | a: A
     | a->b: A ==> B
     |-----------------------------

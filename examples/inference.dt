@@ -1,0 +1,204 @@
+I think I can do it like this:
+
+
+|
+|
+|--------------------------------
+|
+|
+| d : | a : _A
+|     | b : _B
+|     |------------------------------
+|     |
+|     | result : _C  by rule ∧-intro on a, b
+|     |
+|
+| impl : _I  by rule ==>-intro on d
+|
+| actually-a : P(α)  by ...
+|
+| actually-b : G(β)  by ...
+|
+|
+| surprise : _  by rule ==>-elim on impl, actually-a, actually-b
+|
+
+
+So technically, I could do something like this:
+
+|
+|
+|---------------------------------
+|
+|   | p1 : _    --  this is some universal
+|   |           --  like ∀ α P(α)
+|   |-----------------------------
+|   |
+|   | 
+|   |
+|   |
+|   |
+|   |
+|   |
+|   |
+|   |
+|   |
+|   |
+|   |
+|
+|
+|
+|
+|
+|
+
+
+
+
+
+
+
+
+
+
+
+My goal is to write a valid-looking proof that
+does ∀-introduction on a sub-proof written in such a away
+that we won't know the exact formula for the universal until much later
+when we need to do ∀-elimination.
+
+It seems almost impossible.
+
+
+|
+|
+|--------------------------------
+|
+| a : _A  by ...
+|
+| b : _B  by ...
+|
+|
+| |
+| |
+| |------------------------------
+| |
+| | result : _U  by rule ∧-intro on a, b
+| |
+| | --  But by now, it should be clear what _U is because it should be clear
+| | --  what both _A and _B are.
+| | --  I would have to make them unable to figure out for now, somehow.
+| |
+|
+
+
+
+Is there even a way that would allow me to do something like that?
+
+
+|
+|
+|--------------------------------
+|
+|
+|
+|
+|
+|
+| |
+| |
+| |------------------------------
+| |
+| |
+| | result : _  by ?
+| |
+| |
+| |
+| |
+| |
+|
+|
+|
+|
+|
+
+
+
+And a bit different thing—what about the theorem schemas?
+
+
+theorem schema foo for any proposition P : P ⊢ ...
+foo : | p : P
+      |
+      |--------------------------------
+      |
+      | --  Can I use ∀-intro or ∃-intro on the parametric proposition?
+      | --  Something like this:
+      |
+      | u : ∀ α P  by rule ∀-intro on p
+      |
+      | e : ∃ β P  by rule ∃-intro on p
+      |
+      | --  I think this looks fine. I probably can do that.
+      | --  Not that it will be useful for anything, really.
+      | --  At best, I can use those in rules that expect to be given a universal or an existential
+      | --  in any case, such rules might not be so useful either
+      | --  as they are not allowed to make any specific assumption about the proposition.
+      | --  They can't lead to something like P(λ, ε) or anything like this
+      | --  because there should be no sensible rule that would allow me to take
+      | --  any proposition at all and construct a formula that applies that proposition 
+      | --  to some number of arguments (objects).
+      |
+      | --  It is possible to write such a rule, but that rule would be clearly wrong.
+      | --  Here's the rule I am thinking about:
+
+
+rule schema wrong for any proposition F : | F
+                                          |-------------- wrong
+                                          | F(Zero)
+
+--  I think this rule is legit-looking and should work in the future
+--  but it leads to an ill inference.
+--  It just doesn't make any sense at all.
+
+
+
+
+
+
+--  All this leads me to another thought.
+--  When I have a theorem schema for some proposition P,
+--  I assume that P holds. That is clear from the syntax of the theorem.
+--
+--  When I read it as if they were types, I see that
+--  it means that the theorem schema parametrizes over some type but not over
+--  some type constructor. The kind of the parameter must be `Type` aka `*`.
+--  In other words, a formula, a something that I can take a proof of / a derivation for.
+
+--  In the future it would be interesting to see if I can deal with "higher-kinded"
+--  proposition parameters.
+
+--  Something like:
+
+theorem schema higher for any proposition P so that P(ℕ) : P(Zero), ∀ n ℕ(n) ==> P(n)
+higher :  | p1 : P(Zero)
+          | p2 : ∀ n ℕ(n) ==> P(n)
+          |--------------------------
+          | ...
+
+
+-- or alternatively a type-theoretic syntax:
+
+theorem schema higher for any proposition (P : ℕ -> Prop) : P(Zero), ∀ n ℕ(n) ==> P(n)
+higher :  | p1 : P(Zero)
+          | p2 : ∀ n ℕ(n) ==> P(n)
+          |--------------------------
+          | ...
+
+--  Where `Prop` is some special symbol like `*` or `Type`.
+
+--  The main idea is that we are parametrizing over the proposition itself
+--  while taking as arguments derivations of formulae containing it.
+--  This gives us a proper second-order-ness in the predicate dimension.
+
+--  This might also be doable, idk.

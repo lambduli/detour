@@ -1,5 +1,3 @@
-
-
 theorem foo:  ∀ a P(a) ==> K(a) ⊢ ∃ x P(x) ==> K(x).
 
 
@@ -80,7 +78,7 @@ _:  | p1: ∀ x P(x) ==> G(x)
     |     |
     |     | Pc=>Gc : P(c) ==> G(c)  by rule ∀-elim on p1
     |     |
-    |     | Pc : P(c)  by rule ∀-elim on p1
+    |     | Pc : P(c)  by rule ∀-elim on p2
     |     |
     |     | Gc : G(c)  by rule ==>-elim on Pc=>Gc, Pc
     |

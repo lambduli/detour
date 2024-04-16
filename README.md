@@ -2,18 +2,29 @@
 
 A toy proof-checker for first-order logic natural deduction with Fitch-style notation.
 
+It's a mix of a subset of second-order propositional and first-order predicate logic.
+
 
 ------
 
 
 ## TODO:
-- [ ] a switch `--intuitionistic` or `--classical` that disallows (or allows) the *proof by contradiction* rule
-  it might also have some impact on the future features supporting induction and non-constructive axioms
-- [ ] Lexer
-- [ ] Parser
+- [ ] a switch `--lem=true/false` that disallows (or allows) the *proof by contradiction* rule
+- [x] Lexer
+- [x] Parser
 - [x] the Data Type Representation
+- [ ] named axioms in the global scope
+- [ ] named sub-proofs in the global scope
+- [ ] user-defined syntax
+  - [ ] check the strict positivity property
 - [ ] Proof-checking
-  - [ ] Unification
+  - [x] Unification
+  - [ ] `check'rule`
+    - [ ] induction
+    - [ ] custom rules
+  - [ ] second-order features
+    - [ ] theorem schemas
+    - [ ] rule schemas
 - [ ] REPL
   - [ ] the Console Command Mode
 
@@ -49,7 +60,7 @@ axioms:
   ∀ x P(x) => Nat(x)  -- P can be whatever and this can lead to proving that Nat(β) for some strange constant β
                       -- If P(x) can be proved true for terms outside the inductive framework you can infer Nat(x) without following the intended progression.
 
-  P(β) ∨ Nat(β) -- I am not sure that `∨` is a problem on their own. But thinking of it right now, I am not sure what would happen if I proved ¬P(β). Wouldn't this lead to elimination that would just assert Nat(β)? I don't remember a rule like that, but who knows.
+  P(β) ∨ Nat(β) -- I am not sure that `∨` is a problem on its own. But thinking of it right now, I am not sure what would happen if I proved ¬P(β). Wouldn't this lead to elimination that would just assert Nat(β)? I don't remember a rule like that, but who knows.
 
   ⊤ ∧ Nat(β)  -- This just directly asserts that Nat(β).
 
@@ -60,20 +71,14 @@ axioms:
 This should demonstrate why we don't want to allow those.
 I think we can allow `Nat(_)` when it is on the left-hand side of the `=>`. I think that if it's on the LHS of a `=>` it is even ok if the `Nat(_)` is wrapped in `¬` or `∧` or `∨` and so on. The reason being, if its on the LHS of `=>` it's still a condition/premise of the implication/function. It is not a result. And what is more, I think it should also be ok for the `Nat(_)` to be on the RHS of an implication if it is nested on the LHS of some implication. An example:
 
-```
-axioms:
-
-  (X => Nat(β)) => P
-```
-
-Reasoning being, to use this implication to prove `P` (even if it's effectively ⊥) we would nee to do modus ponens of => elimination. That means giving a proof of `X => Nat(β)`. If that is possible, well then ok (but it seems to be that something like that would not be possible). There are some formulae that would look more reasonable as axioms of this shape:
+The reasoning is, that to use this implication to prove `P` (even if it's effectively a ⊥) we would need to do modus ponens of => elimination. That means giving a proof of `X => Nat(β)`. If that is possible, well then ok (but it seems to be that something like that would not be possible). There are some formulae that would look more reasonable as axioms of this shape:
 
 ```
   ∀ x ( [ X(x) => Nat(x) ] => P(x) )
 
 ```
 
-One can imagine that `X` is something that makes the whole thing to make sense. It might be a predicate that only holds if the `x` is `Nat` or if it's `Nat` and is an even number, or something like this. Even with this somewhat incomplete example I think it should be clear that having `Nat(_)` on the RHS of some => is ok if that whole implication is on the LHS of a top-level =>. For more intuition, see the following Agda snippet:
+One can imagine that `X` is something that makes the whole thing make sense. It might be a predicate that only holds if the `x` is `Nat` or if it's `Nat` and is an even number, or something like this. Even with this somewhat incomplete example, I think it should be clear that having `Nat(_)` on the RHS of some => is ok if that whole implication is on the LHS of a top-level =>. For more intuition, see the following Agda snippet:
 
 ```agda
 data Nat : Set where
@@ -113,3 +118,19 @@ I think the last part is talking about the impact on `Foo`.
 In any case, I need to read more on this.
 
 (More of the brainstorm with the AI at https://gemini.google.com/app/f0ea08f6daf73324)
+
+
+
+(ℕ(nᶜ) ==> (∃ n₃ Sum(nᶜ, n₂ᶜ, n₃ᵇ)))    ==>    (ℕ(nᶜ) ==> (∃ n₃ Sum(Suc(nᶜ), n₂ᶜ, n₃ᵇ)))
+(ℕ(nᶜ) ==> (∃ b ℕ(bᵇ) ==> Sum(nᶜ, n₂ᶜ, bᵇ)))    ==>    (ℕ(nᶜ) ==> (∃ n₃ ℕ(n₃ᵇ) ==> Sum(Suc(nᶜ), n₂ᶜ, n₃ᵇ)))
+
+
+∀ n
+    (ℕ(nᵇ) ==> (∃ n₃ ℕ(n₃ᵇ) ==> Sum(nᶜ, n₂ᶜ, n₃ᵇ)))
+        ==>
+    (ℕ(nᵇ) ==> (∃ n₃ ℕ(n₃ᵇ) ==> Sum(Suc(nᶜ), n₂ᶜ, n₃ᵇ)))
+
+
+
+Sum(nᶜ, n₂ᶜ, _39ᵇ)
+ℕ(_39ᵇ) ==> Sum(nᶜ, n₂ᶜ, _39ᵇ)

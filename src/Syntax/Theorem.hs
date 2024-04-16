@@ -1,9 +1,11 @@
 module Syntax.Theorem where
 
 
+import Data.List.Extra ( intercalate )
+
 import Syntax.Formula ( Formula )
 import Syntax.Judgment ( Judgment )
-import Syntax.Assumption ( Assumption )
+-- import Syntax.Assumption ( Assumption )
 
 
 data Theorem = Theorem  { name :: String
@@ -21,5 +23,8 @@ instance Show Theorem where
   --  TODO: ?
   show :: Theorem -> String
   show Theorem{ name, assumptions, conclusion, proof }
-    = "theorem " ++ name ++ " : " ++ show assumptions ++ " ⊢ " ++ show conclusion ++ "\n" ++ show proof
+    = "theorem " ++ name ++ " : "
+        ++ intercalate ", " (map show assumptions)
+        ++ " ⊢ " ++ show conclusion
+        ++ "\n" ++ intercalate "\n" (map show proof)
     

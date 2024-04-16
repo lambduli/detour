@@ -62,13 +62,21 @@ library
 
     -- Modules exported by the library.
     exposed-modules:
+        Check.Assertion
         Check.Check
+        Check.Constraint
         Check.Environment
         Check.Error
-        Check.Meta
         Check.Module
+        Check.Proof
+        Check.Rule
+        Check.Solver
         Check.State
+        Check.Substitute
+        Check.Substitution
         Check.Theorem
+        Check.Unify
+        Check.Vars
 
         Parser.Lexer
         Parser.Parser
@@ -94,7 +102,7 @@ library
 
     -- Other library packages from which modules are imported.
     build-depends:
-        base ^>=4.17.1.0,
+        base ^>=4.19.0.0,
         array >= 0.5.4.0,
         containers >=0.6.2.1,
         directory,
@@ -113,7 +121,20 @@ library
 
     build-tool-depends: alex:alex >=3.2.6 && <4.0, happy:happy >=1.20.0 && <2.0
 
-    default-extensions: NamedFieldPuns ImportQualifiedPost BangPatterns InstanceSigs
+    default-extensions:
+        NamedFieldPuns,
+        ImportQualifiedPost,
+        BangPatterns,
+        InstanceSigs,
+        TupleSections,
+        PatternSynonyms,
+        MultiParamTypeClasses,
+        FlexibleInstances,
+        FunctionalDependencies,
+        FlexibleContexts,
+        LambdaCase,
+        BlockArguments,
+        TypeFamilies
 
 executable detour
     -- Import common warning flags.
@@ -129,10 +150,17 @@ executable detour
     -- other-extensions:
 
     -- Other library packages from which modules are imported.
-    build-depends:    base ^>=4.17.2.0
+    build-depends:
+        base ^>=4.19.0.0,
+        containers >=0.6.2.1,
+        extra,
+        mtl,
+        detour
 
     -- Directories containing source files.
     hs-source-dirs:   app
 
     -- Base language which the package is written in.
     default-language: Haskell2010
+
+    default-extensions: ImportQualifiedPost

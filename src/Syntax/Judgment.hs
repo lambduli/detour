@@ -11,4 +11,9 @@ import {-# SOURCE #-} Syntax.Proof ( Proof )
 
 data Judgment = Sub'Proof Proof
               | Claim Claim
-  deriving (Show, Eq)
+  deriving (Eq)
+
+
+instance Show Judgment where
+  show (Sub'Proof proof) = show proof
+  show (Claim claim) = show claim

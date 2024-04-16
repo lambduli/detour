@@ -1,0 +1,111 @@
+
+--  The idea is to represent the following definitions.
+
+--  class Foo a where
+--    foo :: a -> a
+--  
+--  class Foo a => Bar a where
+--    bar :: a -> a
+
+
+syntax:
+
+terminals : Nat
+
+Var = foo'var
+
+τ = Nat
+  | τ -> τ
+--  We will keep it simple.
+
+
+--  So what is an instance?
+--  A judgment saying that a certain type is an instance of the type class.
+
+--  instance Foo Nat where
+--    foo = foo'nat
+
+--  So we need a judgment that there's a certain foo'nat
+
+judgment Var :: τ :
+
+  ---------------------- foo-nat
+  foo'nat :: Nat -> Nat
+
+
+--  Now, the instance?
+
+judgment i-Foo(τ, Var) :
+--  judgment i-Foo reads as "to be an instance of Foo"
+
+rule instance-foo-nat : |
+                        |-------------------- instance-foo-nat
+                        | i-Foo(Nat, foo'nat)
+
+
+--  Now, the type class declaration. That is a theorem.
+--  class Foo a where
+--    foo :: a -> a
+
+theorem c-Foo : ∀ a ∀ method i-Foo(a, method) ==> method :: a -> a
+
+theorem c-Foo : ∀ a (∃ m i-Foo(a, m)) ==> (∃ m m :: a -> a)
+
+
+
+
+--  When you define an insance you are writing a proposition.
+--  You state that, for example, Nat is an instance of Foo.
+--  It is up to a type-checker to give a proof.
+--  The proof is that those methods have the correct types.
+--  So it would make sense to write the instance declaration as a theorem instead of a judgment rule.
+
+--  When you define a type class you are writing a proposition also.
+--  You state that, for example, to be an instance of Foo, you have to have methods of the correct types.
+--  This is almost the same as for the instance.
+
+--  I think that's because the type class and instance definitions are actually two parts of the same thing (statement).
+--  I can imagine system where we don't have class definitions only instance definitions.
+--  Instances have method signatures.
+--  The type-checker then checks that all those instance declarations "belong to the common class".
+--  That would mean that they have the same methods, the same arity and kind, types of their methods have a common supertype in
+--  terms of the polymorphism.
+--  But that would be weird and not nice.
+
+--  I think this should mean that I can ommit the "encoding" of the type class definition and just have theorem for the instance.
+--  We will keep the type class in our heads.
+
+--  The theorem for the instance would then be:
+
+syntax:
+ID  = foo'var
+    | ...
+
+τ = ID
+  | τ -> τ
+
+
+judgment i-Foo(τ, Var) :
+--  judgment i-Foo reads as "to be an instance of Foo"
+
+rule schema instance-foo-τ for object ID, τ : | ID :: τ -> τ
+                                              |------------------------ instance-foo-τ
+                                              | i-Foo(τ, ID)
+
+
+
+
+theorem i-Foo-Nat : i-Foo(Nat, foo'nat)
+--  I would now prove that foo'nat has a type Nat using case analysis.
+--  That would be simple, because there's a single rule-schema instance-foo-τ that only needs me to prove
+--  that foo'nat :: Nat -> Nat
+--  that has been asserted by foo-nat rule.
+
+
+
+
+--  It would be even more interesting if we parametrized-out the class name.
+--  There would be a relation τ ∈ ID
+--  And we could have multiple type classes and some more types.
+
+--  TODO: I should get to that later.

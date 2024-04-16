@@ -1,0 +1,20 @@
+module impl
+
+
+theorem foo : A ==> B ==> C ⊢ B ==> A ==> C
+| p : A ==> B ==> C
+|----------------------------
+|
+| 0 : | p0 : B
+|     |---------------------
+|     |
+|     | 1 : | p1 : A
+|     |     |------------------
+|     |     |
+|     |     | b=>c : B ==> C  by rule ==>-elim on p, p1
+|     |     |
+|     |     | C  by rule ==>-elim on b=>c, p0
+|     |
+|     | A ==> C  by rule ==>-intro on 1
+|
+| B ==> A ==> C  by rule ==>-intro on 0

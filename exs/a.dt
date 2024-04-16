@@ -1,0 +1,35 @@
+module a
+
+
+constants : Zero, Suc
+
+
+axiom nat-zero : ℕ(Zero)
+axiom nat-suc  : ∀ n : ℕ(n) ==> ℕ(Suc(n))
+
+
+theorem one : ℕ(Suc(Suc(Zero)))
+|
+|--------------------------------------------------------------------
+|
+| ℕ(Zero)  by axiom nat-zero
+| 1 : ℕ(Zero) ==> ℕ(Suc(Zero))  by rule ∀-elim on nat-suc
+| 2 : ℕ(Suc(Zero))  by rule ==>-elim on 1, nat-zero
+| 3 : ℕ(Suc(Zero)) ==> ℕ(Suc(Suc(Zero)))  by rule ∀-elim on nat-suc
+|
+| -- _ : P(Suc(αᶜ))  by rule ∀-elim on nat-suc
+|
+|
+| uni : | for all α
+|       |--------------
+|       |
+|       | ℕ(Zero)  by axiom nat-zero
+|       |
+|
+|
+| univ : ∀ x : ℕ(Zero)  by rule ∀-intro on uni
+|
+|
+|
+| ℕ(Zero)  by rule repetition on nat-zero
+| ℕ(Suc(Suc(Zero)))  by rule ==>-elim on 3, 2

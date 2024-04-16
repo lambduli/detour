@@ -1,0 +1,33 @@
+
+judgment 𝔽 ==> 𝔽
+
+rule schema impl-intro for propositions A, B :
+
+|
+| | A
+| |------
+| | B
+|
+|---------- impl-intro
+|
+| A ==> B
+|
+
+
+rule schema disj-elim for propositions A, B, C :
+
+|
+| A ∨ B 
+|
+| | A
+| |------
+| | C
+|
+| | B
+| |------
+| | C
+|
+|---------- disj-elim
+|
+| C
+|

@@ -1,0 +1,315 @@
+{
+module Parser.Lexer where -- TODO: export list
+
+
+import Prelude hiding ( const )
+
+import Control.Monad.Except ( Except, runExcept, throwError )
+import Control.Monad.State ( MonadState(get, put), gets, StateT( runStateT ) )
+
+import Data.Word ( Word8 )
+import Data.Char ( ord )
+import Data.List ( uncons )
+
+import Parser.Token ( Token )
+import Parser.Token qualified as Token
+
+import Syntax.Term ( Term )
+
+
+import Debug.Trace ( trace )
+
+}
+
+-- %encoding "iso-8859-1"
+
+
+$upper                = [A-Z Α-Ω ℕ]
+
+$lower                = [a-z α-ω]
+
+$digit                = [0-9]
+
+$special              = [\∀ \∃ \= \> \< \¬ \∧ \∨ \⊥ \⊤ ]
+
+@lowerident           = [$lower $digit $special] [$lower \- \_ $digit \' $special]*
+
+@upperident           = $upper [$lower $upper \- \_ $digit \']*
+
+@number               = [$digit]+
+
+@line                 = \|[\-]+
+
+$space                = [\ \t\f\v\n]
+
+
+detour :-
+
+$space+                 ;
+
+"--".*\n                ;
+
+@line                   { token Token.Dash }
+"module"                { token Token.Module }
+
+"ᶜ"                     { token Token.Constant'Before }
+
+"("                     { token Token.Paren'Open }
+")"                     { token Token.Paren'Close }
+"["                     { token Token.Box'Open }
+"]"                     { token Token.Box'Close }
+"{"                     { token Token.Bracket'Open }
+"}"                     { token Token.Bracket'Close }
+
+-- keywords
+","                     { token Token.Comma }
+"."                     { token Token.Period }
+"theorem"               { token Token.Theorem }
+"constants"             { token Token.Constants }
+"axioms"                { token Token.Axioms }
+"aliases"               { token Token.Aliases }
+":"                     { token Token.Colon }
+"⊢"                     { token Token.Turnstile }
+"by"                    { token Token.By }
+"rule"                  { token Token.Rule }
+"induction"             { token Token.Induction }
+"unproved"              { token Token.Unproved }
+"on"                    { token Token.On }
+"for"                   { token Token.For }
+"all"                   { token Token.All }
+"some"                  { token Token.Some }
+"object"                { token Token.Object }
+"objects"               { token Token.Object }
+"proposition"           { token Token.Proposition }
+"propositions"          { token Token.Proposition }
+
+"="                     { token Token.Equal }
+
+-- logical connectives
+"⊤"                     { token Token.Tautology }
+"TRUE"                  { token Token.Tautology }
+"True"                  { token Token.Tautology }
+"Tautology"             { token Token.Tautology }
+"TAUTOLOGY"             { token Token.Tautology }
+
+
+"⊥"                     { token Token.Contradiction }
+"FALSE"                 { token Token.Contradiction }
+"FALSE"                 { token Token.Contradiction }
+"CONTRADICTION"         { token Token.Contradiction }
+"Contradiction"         { token Token.Contradiction }
+
+"∀"                     { token Token.Forall }
+"forall"                { token Token.Forall }
+
+"∃"                     { token Token.Exists }
+"exists"                { token Token.Exists }
+
+"¬"                     { token Token.Negate }
+"NOT"                   { token Token.Negate }
+
+"∧"                     { token Token.And }
+"&&"                    { token Token.And }
+"&"                     { token Token.And }
+"AND"                   { token Token.And }
+
+"∨"                     { token Token.Or }
+"OR"                    { token Token.Or }
+
+"=>"                    { token Token.Implication }
+"==>"                   { token Token.Implication }
+"⟹"                     { token Token.Implication }
+
+"<=>"                   { token Token.Equivalence }
+"<==>"                  { token Token.Equivalence }
+"⟺"                     { token Token.Equivalence }
+
+
+"|"                     { pipe'line }
+
+
+@lowerident             { emit Token.Lower'Var }
+
+@upperident             { emit Token.Upper'Var }
+
+-- @number                 { emit Token.Number }
+
+
+<behind> {
+
+  "|"                   { pipe'line }
+
+  ()                    { end'layout }
+
+}
+
+
+<eof> ()                { do'EOF }
+
+{
+
+end'layout :: String -> Lexer Token
+end'layout _ = do
+  s <- get
+  put s{ start'code = 0 }
+  return Token.End'Layout
+
+
+token :: Token -> String -> Lexer Token
+token t _ = (return t)
+
+
+emit :: (String -> Token) -> String -> Lexer Token
+emit mk't = return . mk't
+
+
+--  TODO: deal with the special layout thing
+read'token :: Lexer Token
+read'token = do
+  s <- get
+  start'code <- gets start'code
+  case alexScan (lexer'input s) start'code of
+    AlexEOF -> handle'EOF
+
+    AlexError inp' ->
+      throwError ("Lexical error on line " ++ (show $! ai'line'no inp') ++ " and column " ++ (show $! ai'col'no inp'), ai'col'no inp')
+    
+    AlexSkip inp' _ -> do
+      put s{ lexer'input = inp' }
+      read'token
+    
+    AlexToken inp' n act -> do
+      let (Input{ ai'input = buf }) = lexer'input s
+      put s{ lexer'input = inp' }
+      act (take n buf)
+
+
+type Lexer a = StateT Lexer'State (Except (String, Int)) a
+
+
+data AlexInput = Input
+  { ai'line'no   :: !Int
+  , ai'col'no    :: !Int
+  , ai'last'char :: !Char
+  , ai'input     :: String }
+  deriving (Eq, Show)
+
+
+data Lexer'State = Lexer'State
+  { lexer'input :: !AlexInput
+  , start'code  :: !Int
+  , layouts     :: ![Int]
+  , constants   :: ![String]
+  , bound       :: ![[String]]
+  , const       :: ![[String]]
+  , aliases     :: ![(String, Term)] }  --  TODO: for now, I am going without aliases
+  deriving (Eq, Show)
+
+
+initial'state :: String -> Lexer'State
+initial'state s = Lexer'State
+  { lexer'input       = Input
+                        { ai'line'no    = 1
+                        , ai'col'no     = 1 
+                        , ai'last'char  = '\n'
+                        , ai'input      = s }
+  , start'code        = 0
+  , layouts           = []
+  , constants         = []
+  , bound             = []
+  , const             = []
+  , aliases           = [] }
+
+
+-- The functions that must be provided to Alex's basic interface
+alexGetByte :: AlexInput -> Maybe (Word8, AlexInput)
+alexGetByte input@Input{ ai'input }
+  = advance <$> uncons ai'input
+    where
+      advance :: (Char, String) -> (Word8, AlexInput)
+      advance ('\n', rest)
+        = ( fromIntegral (ord '\n')
+          , Input { ai'line'no    = ai'line'no input + 1
+                  , ai'col'no     = 1
+                  , ai'last'char  = '\n'
+                  , ai'input      = rest } )
+
+      advance ('∨', rest)
+        = ( fromIntegral (ord '|')
+          , Input { ai'line'no    = ai'line'no input
+                  , ai'col'no     = ai'col'no input + 1
+                  , ai'last'char  = '|'
+                  , ai'input      = rest } )
+        
+      advance (c, rest)
+        = ( fromIntegral (ord c)
+          , Input { ai'line'no    = ai'line'no input
+                  , ai'col'no     = ai'col'no input + 1
+                  , ai'last'char  = c
+                  , ai'input      = rest } )
+
+
+pipe'line :: String -> Lexer Token
+pipe'line _ = do
+  s <- get
+  col <- gets (ai'col'no . lexer'input)
+  let cur = col - 1
+  layouts <- gets layouts
+
+  case layouts of
+    [] -> do
+      --  No layout seen yet. Acting as if the current position is larger than the current layout.
+      put s{ layouts = cur : layouts }
+      return Token.Begin'Layout
+
+    (p : _) -> do
+      if cur == p
+      then do
+        read'token
+      else  if cur > p
+            then do
+              put s{ layouts = cur : layouts }
+              return Token.Begin'Layout
+            else do
+              put s{ start'code = behind }
+              read'token
+
+
+get'line'no :: Lexer Int
+get'line'no = gets (ai'line'no . lexer'input)
+
+
+get'col'no :: Lexer Int
+get'col'no = gets (ai'col'no . lexer'input)
+
+
+handle'EOF :: Lexer Token
+handle'EOF = do
+  s <- get
+  let ls = layouts s
+  if not (null ls)
+  then do
+    put s{ start'code = eof }
+    read'token
+  else do
+    return Token.EOF
+
+
+do'EOF :: String -> Lexer Token
+do'EOF _ = do
+  --  So there's nothing on the input but we might still have some layouts open.
+  s <- get
+  let ls = layouts s
+
+  case ls of
+    [] -> do
+      --  No layout open. We can emit EOF.
+      return Token.EOF
+
+    (p : ps) -> do
+      --  We close this one and keep going.
+      put s{ layouts = ps }
+      return Token.End'Layout
+
+
+}

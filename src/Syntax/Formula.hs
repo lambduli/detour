@@ -5,7 +5,7 @@ import Prelude hiding (True, False)
 import Prelude qualified as P
 import Data.List ( intercalate )
 -- import Syntax.Term ( Term(..) )
-import Syntax.Relation ( Relation(..) )
+import Syntax.Relation ( Relation(..), Prop'Var(..) )
 
 
 data Formula  = True                    -- ⊤
@@ -18,7 +18,7 @@ data Formula  = True                    -- ⊤
               | Eq Formula Formula      -- F(x) ⟺ G(y)
               | Forall String Formula   -- ∀ x P(x)
               | Exists String Formula   -- ∃ y G(y)
-  deriving (Eq, Ord)
+  deriving (Eq)
 
 
 instance Show Formula where
@@ -27,6 +27,7 @@ instance Show Formula where
   show False = "⊥"
   show (Atom (Rel n [])) = n
   show (Atom (Rel n terms)) = n ++ "(" ++ intercalate ", " (map show terms) ++ ")"
+  show (Atom (Meta'Rel (Prop'Var n))) = "_" ++ n
   show (Not p) | is'compound p  = "¬(" ++ show p ++ ")"
   show (Not p) = "¬" ++ show p
 
@@ -80,12 +81,12 @@ instance Show Formula where
 is'compound :: Formula -> Bool
 is'compound True = P.False
 is'compound False = P.False
-is'compound (Atom (Rel n [])) = P.False
-is'compound (Atom (Rel n terms)) = P.False
-is'compound (Not p) = P.True
-is'compound (And p q) = P.True
-is'compound (Or p q) = P.True
-is'compound (Impl p q) = P.True
-is'compound (Eq p q) = P.True
-is'compound (Forall x p) = P.True
-is'compound (Exists x p) = P.True
+is'compound (Atom (Rel _ _)) = P.False
+is'compound (Atom (Meta'Rel _)) = P.False
+is'compound (Not _) = P.True
+is'compound (And _ _) = P.True
+is'compound (Or _ _) = P.True
+is'compound (Impl _ _) = P.True
+is'compound (Eq _ _) = P.True
+is'compound (Forall _ _) = P.True
+is'compound (Exists _ _) = P.True

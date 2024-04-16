@@ -56,7 +56,7 @@ Sum( S(ℕ₁) , ℕ₂ , S(ℕ₃) )
 
 -- and this too:
 
-sum-s : | p1: Sum( ℕ₁ , ℕ₂ , ℕ₃ )
+sum-s : | Sum( ℕ₁ , ℕ₂ , ℕ₃ )
         |----------------------------
         | Sum( S(ℕ₁) , ℕ₂ , S(ℕ₃) )
 
@@ -78,14 +78,11 @@ sum-s : |
 
 theorem totality :  ∀ ℕ₁ ∀ ℕ₂ ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ )
 |-------------------------------------------------------
-| N2 :  | all ℕ₂
+| N2 :  | for all ℕ₂
 |       |----------------
 |       |
 |       | -- now I need to prove the base case
-|       | N3 :  | some ℕ₃
-|       |       |-------------------------------------------
-|       |       |
-|       |       | _ : Sum( Z , ℕ₂ , ℕ₃ )  by rule sum-z
+|       | for-zero : Sum( Z , ℕ₂ , ℕ₂ )  by rule sum-z
 |       |
 |       | -- by leaving the scope of the N3, we forget ℕ₃
 |       | -- this makes ℕ₂ not unified with it and fresh again.
@@ -94,7 +91,7 @@ theorem totality :  ∀ ℕ₁ ∀ ℕ₂ ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ�
 |       | -- It might not.
 |       | -- Maybe I should just have the justification at the line 38 in the same scope, no sub-proofs necessary?
 |       |
-|       | base : ∃ ℕ₃ Sum( Z , ℕ₂ , ℕ₃ )  by rule ∃-intro N3, ℕ₃
+|       | base : ∃ ℕ₃ Sum( Z , ℕ₂ , ℕ₃ )  by rule ∃-intro for-zero
 |       | -- I am thinking that I can do this even though
 |       | -- ℕ₂ and ℕ₃ are unified at this point, they are the same thing
 |       | -- but I only need to generalize and claim that there exists such ℕ₃ so that ...
@@ -127,6 +124,7 @@ theorem totality :  ∀ ℕ₁ ∀ ℕ₂ ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ�
 |       |
 |       |
 |       | -- Now, I do proof by induction.
+----------------------------------------------------------- base : ∃ ℕ₃ Sum( Z , ℕ₂ , ℕ₃ )
 |       | _: ∀ ℕ₁ ∃ ℕ₃ Sum( ℕ₁ , ℕ₂ , ℕ₃ )  by induction on base, ind
 |       | -- This checks that all the cases are handled. All the base cases and all the inductive cases.
 |
