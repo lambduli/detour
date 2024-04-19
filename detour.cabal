@@ -93,6 +93,7 @@ library
         Syntax.Relation
         Syntax.Term
         Syntax.Theorem
+        Syntax.Type
 
     -- Modules included in this library but not exported.
     -- other-modules:

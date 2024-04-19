@@ -6,11 +6,12 @@ import Data.List.Extra ( intercalate )
 
 import Syntax.Formula ( Formula )
 import Syntax.Term ( Constant )
+import Syntax.Type ( Type(..) )
 
 
 data Assumption = Formula [(Maybe String, Formula)]
-                | Universal [Constant]
-                | Existential (Maybe String, Formula) [Constant]
+                | Universal [(Constant, Type)]
+                | Existential (Maybe String, Formula) [(Constant, Type)]
   deriving (Eq)
 
 

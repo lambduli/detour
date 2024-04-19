@@ -22,9 +22,10 @@ import Syntax.Formula ( Formula(..) )
 import Syntax.Justification ( Justification(..), Rule(..) )
 import Syntax.Module ( Module )
 import Syntax.Proof ( Proof(..) )
-import Syntax.Relation ( Relation(..) )
+import Syntax.Relation ( Relation(..), Prop'Var(..) )
 import Syntax.Term -- ( Term(..), Level(..), pattern Const, pattern Bound'Var )
 import Syntax.Theorem ( Theorem(..) )
+import Syntax.Type ( Type(..) )
 
 import Syntax.Assumption qualified as S
 import Syntax.Claim qualified as S
@@ -62,50 +63,57 @@ import Check.Substitute
 %token
   IDENT       { Token.Ident $$ }
 
-  'ᶜ'         { Token.Constant'Before }
-  'module'    { Token.Module }
+  'ᶜ'             { Token.Constant'Before }
+  'module'        { Token.Module }
 
-  ','         { Token.Comma }
-  '.'         { Token.Period }
-  'theorem'   { Token.Theorem }
-  'constants' { Token.Constants }
+  ','             { Token.Comma }
+  '.'             { Token.Period }
+  'schema'        { Token.Schema }
+  'theorem'       { Token.Theorem }
+  'judgment'      { Token.Judgment }
+  'syntax'        { Token.Syntax }
+  'constants'     { Token.Constants }
   -- 'axioms'    { Token.Axioms }
-  'axiom'     { Token.Axiom }
-  'aliases'   { Token.Aliases }
-  'by'        { Token.By }
-  'rule'      { Token.Rule }
-  'induction' { Token.Induction }
-  'on'        { Token.On }
-  'for'       { Token.For }
-  'all'       { Token.All }
-  'some'      { Token.Some }
-  'unproved'  { Token.Unproved }
-  ':'         { Token.Colon }
-  '⊢'         { Token.Turnstile }
-  '⊤'         { Token.Tautology }
-  '⊥'         { Token.Contradiction }
-  '∀'         { Token.Forall }
-  '∃'         { Token.Exists }
-  '¬'         { Token.Negate }
-  '∧'         { Token.And }
-  '∨'         { Token.Or }
-  '==>'       { Token.Implication }
-  '<=>'       { Token.Equivalence }
-  '('         { Token.Paren'Open }
-  ')'         { Token.Paren'Close }
-  '['         { Token.Box'Open }
-  ']'         { Token.Box'Close }
-  '{'         { Token.Bracket'Open }
-  '}'         { Token.Bracket'Close }
+  'axiom'         { Token.Axiom }
+  'aliases'       { Token.Aliases }
+  'by'            { Token.By }
+  'rule'          { Token.Rule }
+  'induction'     { Token.Induction }
+  'on'            { Token.On }
+  'for'           { Token.For }
+  'all'           { Token.All }
+  'some'          { Token.Some }
+  'unproved'      { Token.Unproved }
+  'object'        { Token.Object }
+  'objects'       { Token.Object }
+  'proposition'   { Token.Proposition }
+  'propositions'  { Token.Proposition }
+  ':'             { Token.Colon }
+  '⊢'             { Token.Turnstile }
+  '⊤'             { Token.Tautology }
+  '⊥'             { Token.Contradiction }
+  '∀'             { Token.Forall }
+  '∃'             { Token.Exists }
+  '¬'             { Token.Negate }
+  '∧'             { Token.And }
+  '∨'             { Token.Or }
+  '==>'           { Token.Implication }
+  '<=>'           { Token.Equivalence }
+  '('             { Token.Paren'Open }
+  ')'             { Token.Paren'Close }
+  '['             { Token.Box'Open }
+  ']'             { Token.Box'Close }
+  '{'             { Token.Bracket'Open }
+  '}'             { Token.Bracket'Close }
 
-  '_'         { Token.Underscore }
-  '='         { Token.Equal }
+  '_'             { Token.Underscore }
+  '='             { Token.Equal }
 
-  '|'         { Token.Pipe }
-  '---'       { Token.Dash }
+  '|'             { Token.Pipe }
+  '---'           { Token.Dash }
 
-  BEGIN_LAYOUT  { Token.Begin'Layout }
-  END_LAYOUT    { Token.End'Layout }
+  BEGIN_LAYOUT    { Token.Begin'Layout }
+  END_LAYOUT      { Token.End'Layout }
 
 
 -- %attributetype        { Attributes a }
@@ -126,11 +134,12 @@ import Check.Substitute
 
 -- TODO: return Module
 Module      ::  { Module }
-            :   'module' ModuleName ConstantsD Aliases Axioms Theorems
+            :   'module' ModuleName ConstantsD Aliases Axioms {- Syntax -} Theorems
                                             { M.Module{ M.name = $2
                                                       , M.constants = $3
                                                       , M.aliases = $4
                                                       , M.axioms = $5
+                                                      -- , M.syntax = $6
                                                       , M.theorems = $6 } }
                                             -- { ($1, $2, $3, $4) }
 
@@ -191,6 +200,17 @@ Axs         ::  { (String, Formula) }
             :   'axiom' IDENT ':' Formula   { ($2, $4) }
 
 
+-- Syntax      ::  { [(String, Syntax)] }
+--             :   Syn Syntax                  { $1 : $2 }
+--             |   {- empty  -}                { [] }
+
+
+-- Syn         ::  { (String, Syntax) }
+--             :   'syntax' PropVar Constructors
+--                                             {  }
+
+
+
 Theorems    ::  { [Theorem] }
             :   Theorem Theorems            { $1 : $2 }
             |   {-  empty   -}              { [] }
@@ -245,13 +265,21 @@ B           ::  { () }
                                                 ; alexSetUserState s{ bound = [] :  binders } } }
 
 
-Binders     ::  { [String] }
+Binders     ::  { [(String, Type)] }
             :   {-  empty -}                { [] }
-            |   IDENT Binders               {% do
+            |   TypeAnn Binders             {% do
                                                 { s <- alexGetUserState
                                                 ; let (b : bs) = bound s
-                                                ; alexSetUserState s{ bound = ($1 : b) : bs }
+                                                ; let (n, t) = $1
+                                                ; alexSetUserState s{ bound = (n : b) : bs }
                                                 ; return ($1 : $2) } }
+
+
+TypeAnn   ::  { (String, Type) }
+          :   '(' IDENT ':' PropVar ')'   { ($2, Type $4) }
+          |   IDENT                       {% do
+                                              { n <- fresh'name
+                                              ; return ($1, Type n) } }
 
 
 QFormula    ::  { Formula }
@@ -263,12 +291,21 @@ QFormula    ::  { Formula }
 
 
 Relation    ::  { Relation }
-            :   IDENT TermArgsM             {% do
+            :   PropVar TermArgsM           { case $2 of
+                                                    { Just terms -> Rel $1 terms
+                                                    ; Nothing -> Rel $1 [] } }
+            |   '_'                         {% do
+                                                { name <- fresh'name
+                                                ; return (Meta'Rel (Prop'Var name))  } }
+
+            |   '_' PropVar                 { Meta'Rel (Prop'Var ('_' : $2)) }
+
+
+PropVar     ::  { String }
+            :   IDENT                      {% do
                                                 { unless  (isUpper (head $1))
                                                           (report'error ("Parsing Error: Illegal proposition `" ++ $1 ++ "'\n" ++ "Propositions should begin with an upper case character."))
-                                                ; case $2 of
-                                                    { Just terms -> return $! Rel $1 terms
-                                                    ; Nothing -> return $! Rel $1 [] } } }
+                                                ; return $1 } }
 
 
 TermArgsM   ::  { Maybe [Term] }
@@ -342,10 +379,10 @@ SubProofAux ::  { (Assumption, [Judgment]) }
 
 
 Assumption  ::  { Assumption }
-            :   ForAll Universals           {% do
+            :   ForAll Constants            {% do
                                                 { s <- alexGetUserState
                                                 ; let cs = consts s
-                                                ; let strs = map (\ (C n) -> n) $2
+                                                ; let strs = map (\ ((C n), _) -> n) $2
                                                 ; alexSetUserState s{ consts = strs : cs }
                                                 ; return $! Universal $2 } }  --  TODO: all these identifiers must be recorded in the environment to be parsed as constants
             |   AssumedFormulae             {% do
@@ -357,7 +394,7 @@ Assumption  ::  { Assumption }
                                             {% do
                                                 { s <- alexGetUserState
                                                 ; let cs = consts s
-                                                ; let strs = map (\ (C n) -> n) $4
+                                                ; let strs = map (\ ((C n), _) -> n) $4
                                                 ; let subst = concatMap (\ s -> F s ==> Const s) strs
                                                 ; let fm = apply subst $1
                                                 ; alexSetUserState s{ consts = strs : cs }
@@ -382,14 +419,14 @@ AssumedFormulae
             |   {- empty -}                 { [ ] }
 
 
-Universals  ::  { [Constant] }
-            :   IDENT                       { [ C $1 ] }
-            |   IDENT ',' Universals        { C $1 : $3 }
+-- Universals  ::  { [(Constant, Type)] }
+--             :   IDENT                       { [ C $1 ] }
+--             |   IDENT ',' Universals        { C $1 : $3 }
 
 
-Constants   ::  { [Constant] }
-            :   IDENT                       { [ C $1 ] }
-            |   IDENT ',' Constants         { C $1 : $3 }
+Constants   ::  { [(Constant, Type)] }
+            :   TypeAnn                     { let { (n, t) = $1 } in [ (C n, t) ] }
+            |   TypeAnn ',' Constants       { let { (n, t) = $1 } in (C n, t) : $3 }
 
 
 Claim       ::  { Claim }

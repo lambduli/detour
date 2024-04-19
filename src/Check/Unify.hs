@@ -8,6 +8,7 @@ import Control.Monad.Except ( throwError )
 
 import Syntax.Formula ( Formula )
 import Syntax.Term ( Term(..), Free(..), Constant(..) )
+import Syntax.Type ( Type )
 
 
 import Check.Check ( Check, collect )
@@ -25,6 +26,10 @@ class Unify a b where
 instance Unify Term Term where
   t1 `unify` t2 = do
     collect (t1 :≡: t2)
+    --  TODO: deal with the types later
+    -- ty1 <- type'of t1
+    -- ty2 <- type'of t2
+    -- collect (ty1 :≡: ty2)
     solve
 
 
@@ -36,8 +41,7 @@ instance Unify Formula Formula where
 
 instance Unify Free Constant where
   free `unify` constant = do
-    collect (Free free :≡: App constant [])
-    solve
+    Free free `unify` App constant []
 
 
 instance Unify Assertion Formula where
@@ -46,6 +50,12 @@ instance Unify Assertion Formula where
   (Axiom fm) `unify` fm' = fm `unify` fm'
   (Derived _ _) `unify` _ = do
     throwError undefined  --  TODO: error
+
+
+instance Unify Type Type where
+  t1 `unify` t2 = do
+    collect (t1 :≡: t2)
+    solve
 
 
 instance Unify a b => Unify [a] [b] where

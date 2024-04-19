@@ -4,8 +4,11 @@ module Syntax.Formula where
 import Prelude hiding (True, False)
 import Prelude qualified as P
 import Data.List ( intercalate )
+
 -- import Syntax.Term ( Term(..) )
 import Syntax.Relation ( Relation(..), Prop'Var(..) )
+import Syntax.Type ( Type )
+
 
 
 data Formula  = True                    -- ⊤
@@ -16,8 +19,11 @@ data Formula  = True                    -- ⊤
               | Or Formula Formula      -- ⊤ ∨ ⊥
               | Impl Formula Formula    -- ⊥ ⟹ R
               | Eq Formula Formula      -- F(x) ⟺ G(y)
-              | Forall String Formula   -- ∀ x P(x)
-              | Exists String Formula   -- ∃ y G(y)
+              -- | Forall String Formula   -- ∀ x : P(x)
+              -- | Exists String Formula   -- ∃ y : G(y)
+
+              | Forall (String, Type) Formula  --  ∀ ℕ : P(ℕ)
+              | Exists (String, Type) Formula  --  ∃ ℕ : P(ℕ)
   deriving (Eq)
 
 
@@ -74,8 +80,11 @@ instance Show Formula where
   -- show (Eq p q) = show p ++ " <==> " ++ show q
   show (Eq p q) = "(" ++ show p ++ ") <==> (" ++ show q ++ ")"
 
-  show (Forall x p) = "∀ " ++ x ++ " " ++ show p
-  show (Exists x p) = "∃ " ++ x ++ " " ++ show p
+  -- show (Forall x p) = "∀ " ++ x ++ " : " ++ show p
+  -- show (Exists x p) = "∃ " ++ x ++ " : " ++ show p
+
+  show (Forall (x, t) p) = "∀ " ++ x ++ " : " ++ show p
+  show (Exists (x, t) p) = "∃ " ++ x ++ " : " ++ show p
 
 
 is'compound :: Formula -> Bool
@@ -88,5 +97,7 @@ is'compound (And _ _) = P.True
 is'compound (Or _ _) = P.True
 is'compound (Impl _ _) = P.True
 is'compound (Eq _ _) = P.True
+-- is'compound (Forall _ _) = P.True
+-- is'compound (Exists _ _) = P.True
 is'compound (Forall _ _) = P.True
 is'compound (Exists _ _) = P.True

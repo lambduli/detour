@@ -21,6 +21,7 @@ import Syntax.Term ( Term(..), Free(..), Constant(..), Bound(..) )
 import Syntax.Relation ( Relation(..), Prop'Var(..) )
 import Syntax.Formula hiding ( True, False )
 import Syntax.Formula qualified as F
+import Syntax.Type ( Type(..) )
 
 
 solve :: Check ()
@@ -52,7 +53,11 @@ get'subst = do
   t'cons <- gets term'constraints
   f'cons <- gets formula'constraints
   subst <- solve'constraints t'cons Substitution.empty
-  solve'constraints (apply subst f'cons) subst
+  subst' <- solve'constraints (apply subst f'cons) subst
+
+  t'cons <- gets type'constraints
+  subst't <- solve'constraints t'cons Substitution.empty
+  return $! subst' `compose` subst't
 
 
 class Unifier b where
@@ -141,30 +146,24 @@ instance Unifier Formula where
       ...
   
   -}
+  f@(Atom (Meta'Rel var@(Prop'Var _))) `mgu` right@(Forall var' body') = do
+    throwError $! Err ("I could not unify a propositional meta-variable `" ++ show var ++ "' with a quantified formula `" ++ show right ++ "'.")
 
-  f@(Atom (Meta'Rel var@(Prop'Var _))) `mgu` right
-    | f == right = return Substitution.empty
-    | otherwise = do
-        return (var ==> right)
-    -- throwError $! Err "Propositional meta-variables are not supported."
+  f@(Atom (Meta'Rel var@(Prop'Var _))) `mgu` right@(Exists var' body') = do
+    throwError $! Err ("I could not unify a propositional meta-variable `" ++ show var ++ "' with a quantified formula `" ++ show right ++ "'.")
 
-  left `mgu` f@(Atom (Meta'Rel var@(Prop'Var _))) = do
+  -- f@(Atom (Meta'Rel var@(Prop'Var _))) `mgu` right
+  --   | f == right = return Substitution.empty
+  --   | otherwise = do
+  --       return (var ==> right)
+
+  f@(Atom (Meta'Rel var@(Prop'Var _))) `mgu` fm
+    | f == fm = return Substitution.empty
+    | var `occurs'in` fm = throwError $! Err ("occurs check failed. A propositional meta-variable `" ++ show var ++ "' occurs in the formula `" ++ show fm ++ "'.")
+    | otherwise = return (var ==> fm)
+
+  left `mgu` f@(Atom (Meta'Rel (Prop'Var _))) = do
     f `mgu` left
-    -- throwError $! Err "Propositional meta-variables are not supported."
-
-  -- f@(Atom (Meta'Rel var@(Prop'Var _))) `mgu` (Forall var' body') = do
-  --   throwError undefined  --  TODO: error
-
-  -- f@(Atom (Meta'Rel var@(Prop'Var _))) `mgu` (Exists var' body') = do
-  --   throwError undefined  --  TODO: error
-
-  -- f@(Atom (Meta'Rel var@(Prop'Var _))) `mgu` fm
-  --   | f == fm = return (var ==> fm)
-  --   | var `occurs'in` fm = throwError undefined --  TODO: occurs check failed
-  --   | otherwise = return (var ==> fm)
-
-  -- fm `mgu` f@(Atom (Meta'Rel (Prop'Var _))) = do
-  --   f `mgu` fm
 
   l@(Atom (Rel n args)) `mgu` r@(Atom (Rel n' args'))
     | n == n' = args `mgu` args'
@@ -189,7 +188,10 @@ instance Unifier Formula where
   --        I can do this:  pick a new name,
   --                        substitute on both sides respective bound variable for a bound var with the new name,
   --                        unify both sides.
-  (Forall var body) `mgu` (Forall var' body') = do
+  (Forall (var, _) body) `mgu` (Forall (var', _) body') = do
+    --  TODO: Should I do anything with the types?
+    --        I think I should try to unify them together.
+    --        If those foralls are supposed to be the same, their types need to be the same.
     n <- fresh'name
     let b = B n
         body'a = apply (B var ==> Bound b) body
@@ -197,7 +199,10 @@ instance Unifier Formula where
 
     body'a `mgu` body'b
 
-  (Exists var body) `mgu` (Exists var' body') = do
+  (Exists (var, _) body) `mgu` (Exists (var', _) body') = do
+    --  TODO: Should I do anything with the types?
+    --        I think I should try to unify them together.
+    --        If those exists are supposed to be the same, their types need to be the same.
     n <- fresh'name
     let b = B n
         body'a = apply (B var ==> Bound b) body
@@ -207,6 +212,10 @@ instance Unifier Formula where
 
   l `mgu` r = do
     throwError (Err ("I could not unify `" ++ show l ++ "' with `" ++ show r ++ "'." ))
+
+
+instance Unifier Type where
+  _ `mgu` _ = throwError $! Err "Unification on types is not implemented yet!!!"
 
 
 instance (Unifier b, Substitute b) => Unifier [b] where

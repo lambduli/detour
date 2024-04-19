@@ -6,12 +6,15 @@ import Data.List ( find )
 import Syntax.Term ( Free, Bound, Term, Constant )
 import Syntax.Formula ( Formula )
 import Syntax.Relation ( Prop'Var )
+import Syntax.Type ( Type )
+
 
 
 data Binding  = Free'2'Term Free Term
               | Bound'2'Term Bound Term
               | Prop'2'Formula Prop'Var Formula
-              | Const'2'Term Constant Term
+              -- | Const'2'Term Constant Term
+              | Meta'2'Type String Type
   deriving (Show, Eq)
 
 
@@ -75,9 +78,16 @@ instance Bind Prop'Var Formula where
                                       _ -> False) subst
 
 
-instance Bind Constant Term where
-  lookup :: Constant -> Substitution -> Maybe Term
+instance Bind String Type where
+  (==>) :: String -> Type -> Substitution
+  (==>) p f = [Meta'2'Type p f]
+
+  lookup :: String -> Substitution -> Maybe Type
   lookup k subst = do
-    Const'2'Term _ t <- find (\ case  Const'2'Term c _ | c == k -> True
-                                      _ -> False) subst
+    Meta'2'Type _ t <- find (\ case Meta'2'Type f _ | f == k -> True
+                                    _ -> False) subst
     return t
+
+  remove :: String -> Substitution -> Substitution
+  remove prop subst = filter (\ case  Meta'2'Type p _ -> prop /= p
+                                      _ -> False) subst

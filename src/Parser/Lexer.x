@@ -70,6 +70,9 @@ $space+                 ;
   -- keywords
   ","                     { emit Token.Comma }
   -- "."                     { emit Token.Period }
+  "schema"                { emit Token.Schema }
+  "judgment"              { emit Token.Judgment }
+  "syntax"                { emit Token.Syntax }
   "theorem"               { emit Token.Theorem }
   "constants"             { emit Token.Constants }
   -- "axioms"                { emit Token.Axioms }
@@ -248,7 +251,8 @@ data AlexUserState = AlexUserState{ layouts     :: ![Int]
                                   , constants   :: ![String]
                                   , bound       :: ![[String]]
                                   , consts      :: ![[String]]
-                                  , aliases     :: ![(String, Term)] }
+                                  , aliases     :: ![(String, Term)]
+                                  , counter     :: !Int }
 
 
 alexInitUserState :: AlexUserState
@@ -256,7 +260,16 @@ alexInitUserState = AlexUserState { layouts           = []
                                   , constants         = []
                                   , bound             = []
                                   , consts            = []
-                                  , aliases           = [] }
+                                  , aliases           = []
+                                  , counter           = 0 }
+
+
+fresh'name :: Alex String
+fresh'name = do
+  us <- alexGetUserState
+  let cntr = counter us
+  alexSetUserState us{ counter = cntr + 1 }
+  return ('_' : show cntr ++ "?")
 
 
 pipe'line :: AlexInput -> Int -> Alex Token

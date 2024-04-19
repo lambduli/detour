@@ -39,8 +39,10 @@ import Syntax.Claim qualified as C
 
 
 check'proof :: Proof -> Check ()
-check'proof Proof{ assumption = Universal cs , derivations } = do
+check'proof Proof{ assumption = Universal binds , derivations } = do
   d <- asks depth
+
+  let cs = map fst binds
 
   const'depths <- gets const'depth'context
   free'depths <- gets free'depth'context
@@ -75,7 +77,7 @@ check'proof Proof{ assumption = Existential binding cs, derivations } = do
 
   let free'patch = Map.fromList $! map (\ f -> (f, d + 1)) frees
   let const'patch = Map.fromList $! map (\ c -> (c, Unrestricted (d + 1))) consts
-  let const'patch'r = Map.fromList $! map (\ c -> (c, Unrestricted (d + 1))) cs
+  let const'patch'r = Map.fromList $! map (\ (c, _) -> (c, Unrestricted (d + 1))) cs
   
   let patch = case binding of
                 (Just name, formula) ->

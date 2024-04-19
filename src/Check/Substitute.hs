@@ -20,6 +20,7 @@ import Syntax.Formula ( Formula(Exists, Atom, Not, And, Or, Impl, Eq, Forall) )
 import Syntax.Formula qualified as F
 import Syntax.Relation ( Relation(..), Prop'Var(..) )
 import Syntax.Term ( Term(..), Bound(..) )
+import Syntax.Type ( Type(..) )
 
 
 compose :: Substitution -> Substitution -> Substitution
@@ -79,13 +80,13 @@ instance Substitute Term where
         Nothing -> term
         Just t -> t
 
-  --  NOTE: This is sort-of a hack. When I am checking ∀-intro
-  --        I substitute all the constants for bound variables and unify it with the universal.
-  --        Maybe I should change this in the future. I don't love it.
-  apply subst (App c [])
-    = case Substitution.lookup c subst of
-        Nothing -> App c []
-        Just t -> t
+  -- --  NOTE: This is sort-of a hack. When I am checking ∀-intro
+  -- --        I substitute all the constants for bound variables and unify it with the universal.
+  -- --        Maybe I should change this in the future. I don't love it.
+  -- apply subst (App c [])
+  --   = case Substitution.lookup c subst of
+  --       Nothing -> App c []
+  --       Just t -> t
   
   apply subst (App c args) = App c (apply subst args)
 
@@ -119,9 +120,14 @@ instance Substitute Formula where
 
   apply subst (left `Eq` right) = apply subst left `Eq` apply subst right
 
-  apply subst (Forall var fm) = Forall var (apply (Substitution.remove (B var) subst) fm)
+  apply subst (Forall (var, t) fm) = Forall (var, t) (apply (Substitution.remove (B var) subst) fm)
+  
+  apply subst (Exists (var, t) fm) = Exists (var, t) (apply (Substitution.remove (B var) subst) fm)
 
-  apply subst (Exists var fm) = Exists var (apply (Substitution.remove (B var) subst) fm)
+
+instance Substitute Type where
+  apply :: Substitution -> Type -> Type
+  apply subst t = t --  TODO: implement
 
 
 instance Substitute Judgment where

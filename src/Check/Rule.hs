@@ -26,6 +26,7 @@ import Syntax.Formula ( Formula(..) )
 import Syntax.Formula qualified as F
 import Syntax.Relation ( Relation(..), Prop'Var(..) )
 import Syntax.Term ( Term(..), Constant(..), Free(..), Bound(..) )
+import Syntax.Type ( Type )
 -- import Syntax.Theorem ( Theorem(..) )
 -- import Syntax.Theorem qualified as T
 -- import Syntax.Judgment ( Judgment(..) )
@@ -272,7 +273,7 @@ check'rule Contra'Elim [assertion] _ = do
 check'rule Contra'Elim _ _ = do
   throwError $! Err "Wrong number or shapes of arguments to the rule ⊥-elim."
 
-{-  α : | for all α, β
+{-  α : | for all (α : ℕ) , β
         |----------------------
         |
         | formula : P(α, x, β)  by ...   -- where x is something from the outer scope
@@ -289,7 +290,7 @@ check'rule Contra'Elim _ _ = do
     universal : _  by ∀-intro on α                    -}
 --  TODO: I am not going to deal with this now, but when I have it working
 --        I want to experiment a bit and see what can I do about it.
-check'rule Forall'Intro [Derived (Universal vars) formula] universal = do
+check'rule Forall'Intro [Derived (Universal bindings) formula] universal = do
   -- --  There's no guarantee that formula will be "complete".
   -- --  For that reason, I shouldn't apply any substitution to it or do anything with it.
   -- --  Neither universal has to be "complete".
@@ -328,7 +329,8 @@ check'rule Forall'Intro [Derived (Universal vars) formula] universal = do
 
   -- because ("I was trying to check the rule ∀-intro\n\n  the claimed formula `" ++ show universal ++ "'\n\n  the justification produced `" ++ show universal' ++ "'\n\n  because it started from `" ++ show formula ++ "'\n\n  and applied this substitution `" ++ show subst ++ "'.") (universal `unify` universal')
 
-  body <- instantiate universal vars
+  --  TODO: Decide what needs to be done about the type-checking!
+  body <- instantiate universal bindings
   because ("I was trying to check the rule ∀-intro |\n  body " ++ show body ++ "\n\n  formula " ++ show formula ++ "\n\n  universal " ++ show universal) (body `unify` formula)
 
   {-
@@ -409,10 +411,10 @@ check'rule Exists'Introduction _ _ = do
 
     formula : φ  by ∃-elim existential, el
 -}
-check'rule Exists'Elimination [assertion, Derived (Existential (_, premise) constants) last] formula = do
+check'rule Exists'Elimination [assertion, Derived (Existential (_, premise) bindings) last] formula = do
   existential <- asserts'formula assertion
 
-  assum <- instantiate existential constants
+  assum <- instantiate existential bindings
   because ("I was trying to check the rule ∃-elim.")
           (assum `unify` premise)
 
@@ -457,28 +459,30 @@ check'rule rule assertions formula = do
   throwError $! Err "This is a wrong justification."
 
 
-instantiate :: Formula -> [Constant] -> Check Formula
-instantiate e@(Exists _ _) cs = instantiate'exist'to e cs
-instantiate u@(Forall _ _) cs = instantiate'universal'to u cs
+instantiate :: Formula -> [(Constant, Type)] -> Check Formula
+instantiate e@(Exists _ _) bs = instantiate'exist'to e bs
+instantiate u@(Forall _ _) bs = instantiate'universal'to u bs
 instantiate f _ = throwError $! Err ("I was trying to instantiate the formula `" ++ show f ++ "' but it isn't a quantified formula.")
 
 
-instantiate'exist'to :: Formula -> [Constant] -> Check Formula
+instantiate'exist'to :: Formula -> [(Constant, Type)] -> Check Formula
 instantiate'exist'to fm [] = do
   return fm
 
-instantiate'exist'to (F.Exists n body) (c : cs) = do
+instantiate'exist'to (F.Exists (n, t) body) ((c, t') : cs) = do
+  t `unify` t'
   instantiate'exist'to (apply (B n ==> App c []) body) cs --  TODO: refactor with some new pattern synonym like `Const c`
 
 instantiate'exist'to fm _ = do
   throwError $! Err ("Instantiation error. The `" ++ show fm ++ "' is not an existentially quantified formula and there are some instantiation-arguments (terms) left.")
 
 
-instantiate'universal'to :: Formula -> [Constant] -> Check Formula
+instantiate'universal'to :: Formula -> [(Constant, Type)] -> Check Formula
 instantiate'universal'to fm [] = do
   return fm
 
-instantiate'universal'to (F.Forall v body) (c : cs) = do
+instantiate'universal'to (F.Forall (v, t) body) ((c, t') : cs) = do
+  t `unify` t'
   instantiate'universal'to (apply (B v ==> App c []) body) cs --  TODO: refactor with some new pattern synonym like `Const c`
 
 instantiate'universal'to fm _ = do
@@ -495,24 +499,31 @@ unify'with'instance existential@(Exists _ _) instantiation = do
   --  Decomposes the left formula into a left-prefix and the (ideally) right formula.
   --  ∃ x ∃ y ∃ z ...  and ∃ a ...  results in ([x, y], ∃ z ...)
   --  I need to decompose both of them
-  (vars'l, body'l) <- decompose existential
-  (vars'r, _) <- decompose instantiation
+  (binds'l, body'l) <- decompose existential
+  (binds'r, _) <- decompose instantiation
 
-  --  vars'l needs to be longer than vars'r
-  unless  (length vars'l > length vars'r)
+  --  binds'l needs to be longer than binds'r
+  unless  (length binds'l > length binds'r)
           (throwError $! Err ("The supposedly more general formula `" ++ show existential ++ "' does not have a longer prefix than its supposed instantiation `" ++ show instantiation ++ "'."))
 
-  let pref'len = length vars'l - length vars'r
-  let prefix = take pref'len vars'l
+  let pref'len = length binds'l - length binds'r
+  let prefix = take pref'len binds'l
   --  TODO: I should think a bit more about what is happening with the levels of the fresh free-vars.
   --        Does it make sense to give them the current depth level? Is it correct?
-  sub <- mapM (\ s -> do { b <- fresh'free ; return $! Bound'2'Term (B s) (Free b) }) prefix  
 
-  let formula = apply sub $! foldr Exists body'l (drop pref'len vars'l)
+  --  TODO: TYPE-CHECK!
+  --        I am thinking this: All the bound variables that I have just instantiated to free-vars had types,
+  --        I should record those in the typing environment somehow—maybe I can do `local` and run the unification within it,
+  --        so that all the object-level free-vars are known when type-checking during the unification.
+  --        The things that they unify with (from the RHS), must have fitting types.
+  sub <- mapM (\ s -> do { b <- fresh'free ; return $! Bound'2'Term (B s) (Free b) }) (map fst prefix)
 
-  because ("I was trying to unify \n  `" ++ show existential ++ "'\nwith its supposed instance \n  `" ++ show instantiation ++ "'\nI instantiated the existential to\n  `" ++ show formula ++ "'.") (formula `unify` instantiation)
+  let formula = apply sub $! foldr Exists body'l (drop pref'len binds'l)
 
-  where decompose :: Formula -> Check ([String], Formula)
+  because ("I was trying to unify \n  `" ++ show existential ++ "'\nwith its supposed instance \n  `" ++ show instantiation ++ "'\nI instantiated the existential to\n  `" ++ show formula ++ "'.")
+          (formula `unify` instantiation)
+
+  where decompose :: Formula -> Check ([(String, Type)], Formula)
         decompose (Exists x fm) = do
           (binders, body) <- decompose fm
           return (x : binders, body)
@@ -522,20 +533,26 @@ unify'with'instance existential@(Exists _ _) instantiation = do
 
 unify'with'instance universal@(Forall _ _) instantiation = do
   --  I need to decompose both of them
-  (vars'l, body'l) <- decompose universal
-  (vars'r, _) <- decompose instantiation
+  (binds'l, body'l) <- decompose universal
+  (binds'r, _) <- decompose instantiation
 
-  --  vars'l needs to be longer than vars'r
-  unless  (length vars'l > length vars'r)
+  --  binds'l needs to be longer than binds'r
+  unless  (length binds'l > length binds'r)
           (throwError $! Err ("The supposedly more general formula `" ++ show universal ++ "' does not have a longer prefix than its supposed instantiation `" ++ show instantiation ++ "'."))
 
-  let pref'len = length vars'l - length vars'r
-  let prefix = take pref'len vars'l
+  let pref'len = length binds'l - length binds'r
+  let prefix = take pref'len binds'l
   --  TODO: I should think a bit more about what is happening with the levels of the fresh free-vars.
   --        Does it make sense to give them the current depth level? Is it correct?
-  sub <- mapM (\ s -> do { b <- fresh'free ; return $! Bound'2'Term (B s) (Free b) }) prefix
 
-  let formula = apply sub $! foldr Forall body'l (drop pref'len vars'l)
+  --  TODO: TYPE-CHECK!
+  --        I am thinking this: All the bound variables that I have just instantiated to free-vars had types,
+  --        I should record those in the typing environment somehow—maybe I can do `local` and run the unification within it,
+  --        so that all the object-level free-vars are known when type-checking during the unification.
+  --        The things that they unify with (from the RHS), must have fitting types.
+  sub <- mapM (\ s -> do { b <- fresh'free ; return $! Bound'2'Term (B s) (Free b) }) (map fst prefix)
+
+  let formula = apply sub $! foldr Forall body'l (drop pref'len binds'l)
 
   --  REVISE THE QUESTIONS BELOW. DOES IT STILL WORK?
   --  What happens if someone does this:
@@ -548,7 +565,7 @@ unify'with'instance universal@(Forall _ _) instantiation = do
 
   because ("I was trying to unify \n  `" ++ show formula ++ "' () with its supposed instance \n  `" ++ show instantiation ++ "'.") (formula `unify` instantiation)
 
-  where decompose :: Formula -> Check ([String], Formula)
+  where decompose :: Formula -> Check ([(String, Type)], Formula)
         decompose (Forall x fm) = do
           (binders, body) <- decompose fm
           return (x : binders, body)

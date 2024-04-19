@@ -3,16 +3,15 @@ module Parser.Token where
 
 --  TODO: DO IT!
 data Token  = Ident String
-            -- | Upper'Var String
-            -- | Lower'Var String
-            -- | Number String
-
             | Constant'Before
-            | Module
 
             --  keywords
+            | Module
             | Comma           --  ,
             | Period          --  .
+            | Schema          --  schema
+            | Syntax          --  syntax
+            | Judgment        --  judgment
             | Theorem         --  theorem
             | Axiom           --  axiom
             -- | Axioms          --  axioms

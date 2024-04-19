@@ -11,6 +11,7 @@ import Syntax.Term ( Term, Constant(..), Bound(..), Free(..) )
 import Syntax.Theorem ( Theorem )
 import Syntax.Formula ( Formula(..) )
 import Syntax.Relation ( Relation(..), Prop'Var(..) )
+import Syntax.Type ( Type(..) )
 
 import Check.Error ( Error(..) )
 import Check.Environment ( Environment(..) )
@@ -112,6 +113,13 @@ fresh'bound = do
   return (B n)
 
 
+fresh'type :: Check Type
+fresh'type = do
+  n <- fresh'name
+
+  return (Type n)
+
+
 class Collect a where
   collect :: Constraint a -> Check ()
 
@@ -130,6 +138,13 @@ instance Collect Formula where
     put s{ formula'constraints = constraint : formula'constraints}
 
 
+instance Collect Type where
+  collect :: Constraint Type -> Check ()
+  collect constraint = do
+    s@State{ type'constraints } <- get
+    put s{ type'constraints = constraint : type'constraints }
+
+
 look'up'theorem :: String -> Check Theorem
 look'up'theorem name = do
   thms <- asks theorems
@@ -140,3 +155,13 @@ look'up'theorem name = do
     
     Just thm -> do
       return thm
+
+
+type'of :: String -> Check Type
+type'of name = do
+  t'ctx <- asks typing'ctx
+
+  case Map.lookup name t'ctx of
+    Nothing -> throwError $! Err ("Type Error. I don't know a variable or a constant named `" ++ name ++ "'.")
+
+    Just ty -> return ty
