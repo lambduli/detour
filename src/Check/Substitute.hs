@@ -2,6 +2,7 @@ module Check.Substitute where
 
 
 import Data.Map.Strict qualified as Map
+import Data.List ( foldl' )
 
 import Check.Environment ( Environment(assert'scope, Env) )
 import Check.Assertion ( Assertion(..) )
@@ -19,8 +20,9 @@ import Syntax.Justification ( Justification(..) )
 import Syntax.Formula ( Formula(Exists, Atom, Not, And, Or, Impl, Eq, Forall) )
 import Syntax.Formula qualified as F
 import Syntax.Relation ( Relation(..), Prop'Var(..) )
-import Syntax.Term ( Term(..), Bound(..) )
-import Syntax.Type ( Type(..) )
+import Syntax.Term ( Term(..), Bound(..), Var(..), Free(..), Rigid(..) )
+import Syntax.Type ( Type(..), Type'Scheme(..) )
+import Syntax.Case ( Case(..) )
 
 
 compose :: Substitution -> Substitution -> Substitution
@@ -70,7 +72,9 @@ instance Substitute Binding where
   apply :: Substitution -> Binding -> Binding
   apply subst (Free'2'Term f t) = Free'2'Term f (apply subst t)
   apply subst (Bound'2'Term b t) = Bound'2'Term b (apply subst t)
+  apply subst (Rigid'2'Term r t) = Rigid'2'Term r (apply subst t)
   apply subst (Prop'2'Formula p f) = Prop'2'Formula p (apply subst f)
+  apply subst (Meta'2'Type s t) = Meta'2'Type s (apply subst t)
 
 
 instance Substitute Term where
@@ -80,24 +84,20 @@ instance Substitute Term where
         Nothing -> term
         Just t -> t
 
-  -- --  NOTE: This is sort-of a hack. When I am checking ∀-intro
-  -- --        I substitute all the constants for bound variables and unify it with the universal.
-  -- --        Maybe I should change this in the future. I don't love it.
-  -- apply subst (App c [])
-  --   = case Substitution.lookup c subst of
-  --       Nothing -> App c []
-  --       Just t -> t
-  
   apply subst (App c args) = App c (apply subst args)
 
-  apply subst term@(Free f)
+  apply subst term@(Var (Free f))
     = case Substitution.lookup f subst of
+        Nothing -> term
+        Just t -> t
+
+  apply subst term@(Var (Rigid r))
+    = case Substitution.lookup r subst of
         Nothing -> term
         Just t -> t
 
 
 instance Substitute Formula where
--- instance Substitute Free Term Formula where
   apply :: Substitution -> Formula -> Formula
   apply _ F.True = F.True
 
@@ -127,7 +127,17 @@ instance Substitute Formula where
 
 instance Substitute Type where
   apply :: Substitution -> Type -> Type
-  apply subst t = t --  TODO: implement
+  --  TYPE-CHECK
+  apply subst t@(Type'Var v)
+    = case Substitution.lookup v subst of
+        Nothing -> t
+        Just t -> t
+
+  apply _ t@(Type'Const _) = t
+
+  apply subst t@(Type'Fn par res)
+    = Type'Fn (apply subst par) (apply subst res)
+
 
 
 instance Substitute Judgment where
@@ -135,6 +145,8 @@ instance Substitute Judgment where
   apply subst (Sub'Proof proof) = Sub'Proof (apply subst proof)
 
   apply subst (J.Claim claim) = J.Claim (apply subst claim)
+
+  apply subst (Alias n fm) = Alias n (apply subst fm)
 
 
 instance Substitute Proof where
@@ -177,6 +189,13 @@ instance Substitute Justification where
 
   apply subst j@Substitution{ on' } = j{ on' = apply subst on' }
 
+  apply subst j@Case'Analysis{ proofs } = j{ proofs = apply subst proofs }
+
+
+instance Substitute Case where
+  apply :: Substitution -> Case -> Case
+  apply subst (Case (c, rr) proof) = Case (c, rr) (apply subst proof)
+
 
 instance Substitute b => Substitute [b] where
   apply :: Substitution -> [b] -> [b]
@@ -193,6 +212,18 @@ instance Substitute a => Substitute (Constraint a) where
 instance Substitute Environment where
   apply subst e@Env { assert'scope }
     = e{ assert'scope = Map.map (apply subst) assert'scope }
+
+
+instance Substitute (Map.Map a Type'Scheme) where
+  apply :: Substitution -> Map.Map a Type'Scheme -> Map.Map a Type'Scheme
+  apply sub map = Map.map (apply sub) map
+
+
+instance Substitute Type'Scheme where
+  apply :: Substitution -> Type'Scheme -> Type'Scheme
+  apply sub (Forall'T vars t)
+    = let sub' = foldl' (\ m v -> Substitution.remove v m) sub vars
+      in  Forall'T vars (apply sub' t)
 
 
 instance Substitute Assertion where

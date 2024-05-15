@@ -1,0 +1,102 @@
+module a where
+
+
+--  All the types that we define using `data`
+--  are of kind `Type`.
+--  Therefore we don't need to annotate it.
+
+data ℕ  = zero
+        | suc ℕ
+
+
+
+
+--  Judgments represent types that are propositions.
+--  Those are always parametrized by _values_ of Types.
+--  So, v₁ -> v₂ -> ... -> vₙ -> Proposition
+--  where vᵢ : τᵢ  and  τ : Type
+--  So we also don't need to annotate it.
+
+judgment nat-sum : ℕ + ℕ = ℕ
+
+rule schema sum-z for any object (n : ℕ) :  |
+                                            |--------------- sum-z
+                                            | zero + n = n
+
+
+rule schema sum-s for all objects (n : ℕ) (m : ℕ) (o : ℕ) : | n + m = o
+                                                            |-------------------- sum-s
+                                                            | suc n + m = suc o
+
+
+
+--  We also have judgment schemata.
+--  Those are second-order judgments. They are parametrized by propositions.
+--  They are always parametrized by Propositions/Types with kind Type, or are they?
+
+judgment schema conjunction for all propositions (A : Proposition) (B : Proposition) : A ∧ B
+
+rule schema conj-intro for propositions A, B :  | A
+                                                | B
+                                                |-------- conj-intro
+                                                | A ∧ B
+
+
+--  However, we could also want to have things like equivalence that is sort polymorphic.
+--  But maybe we can do without it and have it just "type polymorphic":
+
+judgment schema eq for all objects a, b : a ≡ b
+
+--  I would like to express an elimination rule that would do substitution.
+--  But I don't have expressive power to do that.
+--  I can't write, for any term including function applications,
+--  substitute into it.
+--  But that's fine, this can be builtin.
+
+--  But the judgment above is fine. for all objects a, b is ok.
+
+
+judgment schema eq for all propositions A, B : A ≡ B
+
+--  Again, I would like to have some elimination rule.
+--  I think here, I can partially do it.
+
+rule schema subst-and-l for all propositions A, B, C :  | A ∧ B
+                                                        | A ≡ C
+                                                        |------------ subst-and-l
+                                                        | C ∧ B
+
+
+--  One thing I can't do is do substitution when I have a proof of A ≡ B
+--  but they are just propositional variables/constants.
+--  So if I have A ≡ B and A(zero), I can't do B(zero)
+--  because I don't have a way to write it.
+--  Well, maybe I have.
+
+rule schema subst-1-arg for all objects x and all propositions A, B :
+| A ≡ B
+| A(x)
+|-------- subst-1-arg
+| B(x)
+
+--  But I would have to write so many rules.
+--  Better if it's "generated" by the language aka built-in.
+
+--  So, the system is limited in expressiveness. That is clear.
+
+
+
+
+
+--  This defines a function ƒ+
+--  it states its type,
+--  
+ƒ+ : ℕ -> ℕ -> ℕ
+ƒ+ = λ m n =  match m with
+                zero -> n
+                suc m' -> suc (m' ƒ+ n)
+
+
+--  Now, totality theorem.
+
+theorem totality

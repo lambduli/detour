@@ -1,0 +1,103 @@
+module c
+
+--  What about syntax of the proofs?
+--  I want to make it vertically not so heavy.
+--  I am thinking Haskell's style indentation-sensitivity.
+--  It would save me quite a few lines of those `end _` lines.
+
+--  What would a simple Nat module look like?
+
+
+```
+module ℕ
+
+
+syntax ℕ  = Zero
+          | Suc ℕ
+
+
+judgment sum-nat = ℕ + ℕ = ℕ
+
+rule schema sum-zero for all objects (n : ℕ) :
+|
+|-------------- sum-zero
+| Zero + n = n
+
+
+rule schema sum-suc for all objects (m : ℕ), (n : ℕ), (o : ℕ) :
+
+| m + n = o
+|-------------------- sum-suc
+| Suc m + n = Suc o
+
+
+
+theorem total : ∀ (n₁ : ℕ)
+              : ∀ (n₂ : ℕ)
+              : ∃ (n₃ : ℕ) : n₁ + n₂ = n₃
+
+--  Let's prove the base case: { ∀ (n₂:ℕ) : ∃ (n₃:ℕ) : Zero + n₂ = n₃ }
+base : ∀ (n₂:ℕ) : ∃ (n₃:ℕ) : Zero + n₂ = n₃
+base =  for any (n2 : ℕ)
+          sz : Zero + n2 = n3  by rule sum-zero
+          ∃ (n₃:ℕ) : Zero + n2 = n₃  by rule ∃-intro on sz
+
+
+--  Let's prove the inductive case: 
+step : ∀ (n:ℕ) : { ∀ (n₂:ℕ) : ∃ (n₃:ℕ) : n + n₂ = n₃ } ==> { ∀ (n₂:ℕ) : ∃ (n₃:ℕ) : Suc n + n₂ = n₃ }
+step =  for any (n : ℕ)
+
+          impl : { ∀ (n₂:ℕ) : ∃ (n₃:ℕ) : n + n₂ = n₃ } ==> { ∀ (n₂:ℕ) : ∃ (n₃:ℕ) : Suc n + n₂ = n₃ }
+          impl =  for p3 : ∀ (n₂:ℕ) : ∃ (n₃:ℕ) : n + n₂ = n₃
+
+                    uni-n2b : ∀ (n₂:ℕ) : ∃ (n₃:ℕ) : Suc n + n₂ = n₃
+                    uni-n2b = for all n2
+
+                                d1 : ∃ (n₃:ℕ) : n + n2 = n₃  by rule ∀-elim on p3
+
+                                exn3 : ∃ (n₃:ℕ) : Suc n + n2 = n₃
+                                exn3 =  for some (n3 : ℕ) in d1
+                                            p5 : n + n2 = n3
+
+                                          n+1+n2=n3+1 : Suc n + n2 = suc n3  by rule sum-suc on p5
+                                          ∃ (n₃:ℕ) : Suc n + n2 = n₃  by rule ∃-intro on n+1+n2=n3+1
+
+∀ (n₁:ℕ) (n₂:ℕ) : ∃ (n₃:ℕ) : n₁ + n₂ = n₃  by induction on base, step -- it might not be as simple as this
+```
+
+
+
+The above is interesting and looks somewhat nice.
+It might even be nicer than SASyLF's  syntax.
+
+What about doing induction with "native" case-analysis syntax?
+
+```
+theorem total for all objects (n₁ : ℕ) (n₂ : ℕ) : ∃ (n₃ : ℕ) : n₁ + n₂ = n₃
+
+for any (n1 : ℕ)
+  --  Let's prove it using induction on the first number.
+
+  for any (n2 : ℕ)
+
+    ∃ (n₃ : ℕ) : n1 + n2 = n₃  by induction on n1
+
+      case Zero ->
+        --  this case needs to prove: ∃ (n₃ : ℕ) : Zero + n2 = n₃
+        base : ∃ (n₃ : ℕ) : Zero + n2 = n₃
+        base
+          = sz : Zero + n2 = n3  by rule sum-zero
+            ∃ (n₃ : ℕ) : Zero + n2 = n₃  by rule ∃-intro on sz
+            --  could we ∃-generalize automatically based on the needed type/formula?
+
+      case Suc n' ->
+        --  this case needs to prove ∃ (n₃ : ℕ) : Suc n' + n2 = n₃
+        step : ∃ (n₃ : ℕ) : Suc n' + n2 = n₃
+        step
+          = part : ∃ (n₃ : ℕ) : n' + n2 = n₃  by induction hypothesis on n', n2
+            for some (n3 : ℕ) in part
+                p3 : n' + n2 = n3
+
+              n'+1+n2=n3+1 : Suc n' + n2 = suc n3  by rule sum-suc on p3
+              ∃ (n₃ : ℕ) : Suc n' + n2 = n₃  by rule ∃-intro on n+1+n2=n3+1
+```

@@ -1,0 +1,25 @@
+module connectives
+
+
+
+
+judgment schema conjunction for all propositions A, B : A ∧ B
+
+rule schema and-intro for all propositions A, B : | A
+                                                  | B
+                                                  |------ and-intro
+                                                  | A ∧ B
+
+
+rule schema and-elim-l for all propositions A, B :  | A ∧ B
+                                                    |--------- and-elim-l
+                                                    | A
+
+
+rule schema and-elim-r for all propositions A, B :  | A ∧ B
+                                                    |--------- and-elim-r
+                                                    | B
+
+
+
+--  And so on.

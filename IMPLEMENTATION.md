@@ -15,7 +15,7 @@ _ : | a: A
 
 We assume here that `A` and `B` are specific propositions and not meta-variables.
 
-To check that the derivation is a valid proof for the statement I traverse the derivation sequentially, from top to the bottom. The top-most sub-proof must have corresponding assumptions, of course, and its consequence must correspond to the original statement's consequence.
+To check that the derivation is a valid proof for the statement I traverse the derivation sequentially, from top to bottom. The top-most sub-proof must have corresponding assumptions, of course, and its consequence must correspond to the original statement's consequence.
 
 The body of the proof must be a sequence of "declarations" called *assumptions*.
 Each assumption states that a certain object with a specified name (or an anonymous object in case of `_`) is a proof of a certain proposition. The justification of that is given after the `by` keyword.

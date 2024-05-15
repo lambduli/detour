@@ -3,21 +3,23 @@
 module Check.Solver where
 
 
-import Control.Monad.Reader ( ReaderT, asks, local )
-import Control.Monad.State ( MonadState(get, put), gets )
-import Control.Monad.Except ( Except, runExcept, throwError, tryError, withError, catchError )
+-- import Control.Monad.Reader ( ReaderT, asks, local )
+import Control.Monad.State ( gets, get, put )
+import Control.Monad.Except ( throwError )
 import Control.Monad.Extra ( whenM, anyM )
 
 
-import Check.Check
+import Check.Check ( Check, free'level, rigid'level, fresh'name, look'up'type, type'of, collect )
 import Check.Constraint ( Constraint(..) )
 import Check.Substitute ( Substitute(apply), compose )
 import Check.Substitution ( Substitution, (==>) )
 import Check.Substitution qualified as Substitution
 import Check.State ( State(..), Level(..) )
 import Check.Error ( Error(..) )
+-- import {-# SOURCE #-} Check.Unify ( unify )
+import Check.Types ( instantiate'scheme )
 
-import Syntax.Term ( Term(..), Free(..), Constant(..), Bound(..) )
+import Syntax.Term ( Term(..), Var(..), Rigid(..), Free(..), Constant(..), Bound(..) )
 import Syntax.Relation ( Relation(..), Prop'Var(..) )
 import Syntax.Formula hiding ( True, False )
 import Syntax.Formula qualified as F
@@ -45,19 +47,22 @@ solve'constraints :: (Unifier a, Substitute a) => [Constraint a] -> Substitution
 solve'constraints [] sub = return sub
 solve'constraints ((a :≡: a') : cs) sub = do
   sub' <- a `mgu` a'
+  s <- get
+
+  put s{ typing'ctx = apply sub' (typing'ctx s) }
   solve'constraints (apply sub' cs) (sub' `compose` sub)
 
 
 get'subst :: Check Substitution
 get'subst = do
-  t'cons <- gets term'constraints
-  f'cons <- gets formula'constraints
-  subst <- solve'constraints t'cons Substitution.empty
-  subst' <- solve'constraints (apply subst f'cons) subst
-
-  t'cons <- gets type'constraints
-  subst't <- solve'constraints t'cons Substitution.empty
-  return $! subst' `compose` subst't
+  term'cons <- gets term'constraints
+  formula'cons <- gets formula'constraints
+  term'subst <- solve'constraints term'cons Substitution.empty
+  formula'subst <- solve'constraints (apply term'subst formula'cons) term'subst
+  type'cons <- gets type'constraints
+  type'subst <- solve'constraints (apply formula'subst type'cons) formula'subst
+  return type'subst
+  -- return $! formula'subst `compose` type'subst
 
 
 class Unifier b where
@@ -67,14 +72,19 @@ class Unifier b where
 instance Unifier Term where
   mgu :: Term -> Term -> Check Substitution
   Bound l@(B n) `mgu` Bound r@(B n')
+    --  TYPE-CHECK: I don't need to check that their types are the same. They must be.
     | n == n' = return Substitution.empty
-    | otherwise = throwError $! Err ("I could not unify two non-identical bound variables, the `" ++ show l ++ "' with `" ++ show r ++ "'.")
+    | otherwise = throwError $! Err ("I could not unify two non-identical bound variables, the `" ++ show l ++ "' with the `" ++ show r ++ "'.")
 
   Bound l `mgu` r = do
-    throwError $! Err ("I could not unify a bound variable `" ++ show l ++ "' with a term `" ++ show r ++ "'.")
+    throwError $! Err ("I could not unify the bound variable `" ++ show l ++ "' with the term `" ++ show r ++ "'.")
 
   l `mgu` Bound r = do
-    throwError $! Err ("I could not unify a bound variable `" ++ show r ++ "' with a term `" ++ show l ++ "'.")
+    throwError $! Err ("I could not unify the bound variable `" ++ show r ++ "' with the term `" ++ show l ++ "'.")
+
+  Var (Rigid r) `mgu` Var (Rigid r')
+    | r == r' = return Substitution.empty --  Because if two rigid vars are equal, they have the same type as well.
+    | otherwise = throwError $! Err ("I could not unify two non-identical quantification variables, the `" ++ show r ++ "' with the `" ++ show r' ++ ".")
 
   l@(App (C n) args) `mgu` r@(App (C n') args')
     | n == n' = do
@@ -82,32 +92,49 @@ instance Unifier Term where
       args `mgu` args'
     | otherwise = throwError (Err ("I could not unify `" ++ show l ++ "' with `" ++ show r ++ "'." ))
 
-  var@(Free free@(F _)) `mgu` var'@(Free free'@(F _)) = do
+  --  TODO: refactor!!! #var
+  var@(Var (Free free@(F l))) `mgu` var'@(Var (Free free'@(F r))) = do
+    --  TYPE-CHECK
+    t <- look'up'type l
+    t' <- look'up'type r
+    sub <- t `mgu` t'
+    collect (t :≡: t')
+
     if var == var'
-    then return Substitution.empty 
+    then return sub
     else do
       l <- free'level free
       l' <- free'level free'
-      --  we always keep the one that has a "lower level" meaning that one is "more global" one
+      --  we always keep the one that is from a "lower depth" meaning that one is "more global" one
       if l' <= l
-      then return (free ==> var')
-      else return (free' ==> var) -- l' > l
+      then return (compose sub (free ==> var'))
+      else return (compose sub (free' ==> var)) -- l' > l
 
-  var@(Free free@(F n)) `mgu` term
+  var@(Var (Free free@(F n))) `mgu` term
     --  TODO: I could call this function in the monadic context as well.
     | free `occurs'in` term = do
       throwError $! Err ("occurs check failed. A free variable `" ++ show free ++ "' occurs in the term `" ++ show term ++ "'.")
     | otherwise = do
+      --  TYPE-CHECK
+      t <- look'up'type n
+      t' <- type'of term
+      sub <- t `mgu` t'
+      collect (t :≡: t')
+      
       i <- free'level free
-      whenM (term `escapes'to` i) (throwError $! Err ("escape check failed. Some constant from `" ++ show term ++ "' attempted an escape to the lower depth."))
+      whenM (term `escapes'to` i)
+            (throwError $! Err ("escape check failed. Some quantification variable from `" ++ show term ++ "' attempted to escape through the variable `" ++ show var ++ "'."))
 
-      return (free ==> term)
+      return $! compose sub (free ==> term)
 
-  term `mgu` var@(Free _)
+  term `mgu` var@(Var (Free _))
     = var `mgu` term
 
-  l `mgu` r = do
-    throwError $! Err ("I could not unify `" ++ show l ++ "' with `" ++ show r ++ "'.")
+  Var (Rigid rv) `mgu` r = do
+    throwError $! Err ("I could not unify the quantification variable `" ++ show rv ++ "' with the term `" ++ show r ++ "'.")
+
+  l `mgu` Var (Rigid r) = do
+    throwError $! Err ("I could not unify the quantification variable `" ++ show r ++ "' with the term `" ++ show l ++ "'.")
 
 
 instance Unifier Formula where
@@ -146,11 +173,11 @@ instance Unifier Formula where
       ...
   
   -}
-  f@(Atom (Meta'Rel var@(Prop'Var _))) `mgu` right@(Forall var' body') = do
-    throwError $! Err ("I could not unify a propositional meta-variable `" ++ show var ++ "' with a quantified formula `" ++ show right ++ "'.")
+  -- f@(Atom (Meta'Rel var@(Prop'Var _))) `mgu` right@(Forall var' body') = do
+  --   throwError $! Err ("I could not unify a propositional meta-variable `" ++ show var ++ "' with a quantified formula `" ++ show right ++ "'.")
 
-  f@(Atom (Meta'Rel var@(Prop'Var _))) `mgu` right@(Exists var' body') = do
-    throwError $! Err ("I could not unify a propositional meta-variable `" ++ show var ++ "' with a quantified formula `" ++ show right ++ "'.")
+  -- f@(Atom (Meta'Rel var@(Prop'Var _))) `mgu` right@(Exists var' body') = do
+  --   throwError $! Err ("I could not unify a propositional meta-variable `" ++ show var ++ "' with a quantified formula `" ++ show right ++ "'.")
 
   -- f@(Atom (Meta'Rel var@(Prop'Var _))) `mgu` right
   --   | f == right = return Substitution.empty
@@ -166,7 +193,9 @@ instance Unifier Formula where
     f `mgu` left
 
   l@(Atom (Rel n args)) `mgu` r@(Atom (Rel n' args'))
-    | n == n' = args `mgu` args'
+    | n == n' = do
+      mapM_ (\ (a, a') -> collect (a :≡: a')) (zip args args')
+      args `mgu` args'
     | otherwise = throwError $! Err ("I could not unify `" ++ show l ++ "' with `" ++ show r ++ "'.")  --  TODO: unification error, they are not the same formula
 
   (Not fm) `mgu` (Not fm') = do
@@ -188,10 +217,13 @@ instance Unifier Formula where
   --        I can do this:  pick a new name,
   --                        substitute on both sides respective bound variable for a bound var with the new name,
   --                        unify both sides.
-  (Forall (var, _) body) `mgu` (Forall (var', _) body') = do
-    --  TODO: Should I do anything with the types?
-    --        I think I should try to unify them together.
-    --        If those foralls are supposed to be the same, their types need to be the same.
+  (Forall (var, ts) body) `mgu` (Forall (var', ts') body') = do
+    --  TYPE-CHECK
+    t <- instantiate'scheme ts
+    t' <- instantiate'scheme ts'
+    sub <- t `mgu` t'
+    collect (t :≡: t')
+
     n <- fresh'name
     let b = B n
         body'a = apply (B var ==> Bound b) body
@@ -199,10 +231,13 @@ instance Unifier Formula where
 
     body'a `mgu` body'b
 
-  (Exists (var, _) body) `mgu` (Exists (var', _) body') = do
-    --  TODO: Should I do anything with the types?
-    --        I think I should try to unify them together.
-    --        If those exists are supposed to be the same, their types need to be the same.
+  (Exists (var, ts) body) `mgu` (Exists (var', ts') body') = do
+    --  TYPE-CHECK
+    t <- instantiate'scheme ts
+    t' <- instantiate'scheme ts'
+    sub <- t `mgu` t'
+    collect (t :≡: t')
+
     n <- fresh'name
     let b = B n
         body'a = apply (B var ==> Bound b) body
@@ -215,7 +250,28 @@ instance Unifier Formula where
 
 
 instance Unifier Type where
-  _ `mgu` _ = throwError $! Err "Unification on types is not implemented yet!!!"
+  mgu :: Type -> Type -> Check Substitution
+  Type'Const l `mgu` Type'Const r
+    | l == r = return Substitution.empty
+    | otherwise = throwError $! Err ("I could not unify two non-identical types, the `" ++ l ++ "' with `" ++ r ++ "'.")
+
+  Type'Var l `mgu` t@(Type'Var r) = do
+    if l == r
+    then return Substitution.empty
+    else do
+      return (l ==> t)
+
+  Type'Var l `mgu` t = do
+    return (l ==> t)
+
+  t `mgu` v@(Type'Var _) = do
+    v `mgu` t
+
+  Type'Fn a b `mgu` Type'Fn a' b' = do
+    [a, b] `mgu` [a', b']
+
+  x `mgu` y = do
+    throwError $! Err ("I could not unify `" ++ show x ++ "' with `" ++ show y ++ "'.")
 
 
 instance (Unifier b, Substitute b) => Unifier [b] where
@@ -239,8 +295,11 @@ class Occurs a b | a -> b, b -> a where
 instance Occurs Free Term where
   occurs'in :: Free -> Term -> Bool
   _ `occurs'in` (Bound _) = False  --  TODO: this should also never happen, it would be another internal error
+
   free `occurs'in` (App _ args) = any (occurs'in free) args
-  free `occurs'in` (Free f) = free == f
+
+  free `occurs'in` Var (Free f) = free == f
+  _ `occurs'in` Var (Rigid _) = False
 
 
 instance Occurs Prop'Var Formula where
@@ -258,8 +317,19 @@ instance Occurs Prop'Var Formula where
   prop `occurs'in` (Exists _ body) = prop `occurs'in` body
 
 
+--  I think it is not even necessary.
+--  A type meta-variable can't occur in a Simple Type.
+instance Occurs String Type where
+  occurs'in :: String -> Type -> Bool
+  str `occurs'in` Type'Var n = str == n
+  _ `occurs'in` Type'Const _ = False
+
+  str `occurs'in` Type'Fn p r = str `occurs'in` p || str `occurs'in` r
+
+
+--  TODO: refactor!!! #var
 escapes'to :: Term -> Int -> Check Bool
-(Bound _) `escapes'to` depth -- = return False
+Bound _ `escapes'to` _ -- = return False
   = error "internal error: Bound variable participating in unification."
   --  TODO: I could also just return False and save this dramatic piece of code.
   --  TODO: I think that throwing an error here is a mistake.
@@ -268,12 +338,13 @@ escapes'to :: Term -> Int -> Check Bool
   --        Well, now I am not sure!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   --        I think that this error is correct. Bounds are supposed to disappear.
 
-(App c@(C n) args) `escapes'to` depth = do
-  level <- const'level c
-  case level of
-    Restricted l | l < depth -> do
-      return True
+App c@(C n) args `escapes'to` depth = anyM (\ t -> escapes'to t depth) args
 
-    _ -> anyM (\ t -> escapes'to t depth) args
+Var (Free _) `escapes'to` _ = return False
 
-(Free _) `escapes'to` depth = return False
+Var (Rigid r) `escapes'to` depth = do
+  lev'r <- rigid'level r
+
+  if depth < lev'r
+  then return True
+  else return False

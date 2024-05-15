@@ -1,0 +1,14 @@
+module ex
+
+constants : α, β
+
+
+theorem only-some : P(α, α, β) ⊢ ∃ a : P(a, α, β)
+| p1 : P(α, α, β)
+|------------------------------------------------
+|
+| ∃ a : P(a, α, β)  by rule ∃-intro on p1
+
+
+
+

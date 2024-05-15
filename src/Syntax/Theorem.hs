@@ -5,15 +5,12 @@ import Data.List.Extra ( intercalate )
 
 import Syntax.Formula ( Formula )
 import Syntax.Judgment ( Judgment )
--- import Syntax.Assumption ( Assumption )
 
 
 data Theorem = Theorem  { name :: String
                         , assumptions :: [Formula]
                         , conclusion :: Formula
                         , proof :: [Judgment] }
-                        --  TODO: Do I want to allow the more flexible way?
-                        --        Or do I want to just make it Proof?
   deriving (Eq)
 
 

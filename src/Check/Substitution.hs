@@ -3,17 +3,17 @@ module Check.Substitution where
 
 import Data.List ( find )
 
-import Syntax.Term ( Free, Bound, Term, Constant )
+import Syntax.Term ( Free, Bound, Term, Rigid )
 import Syntax.Formula ( Formula )
 import Syntax.Relation ( Prop'Var )
 import Syntax.Type ( Type )
 
 
-
+--  TODO: refactor??? #var
 data Binding  = Free'2'Term Free Term
+              | Rigid'2'Term Rigid Term
               | Bound'2'Term Bound Term
               | Prop'2'Formula Prop'Var Formula
-              -- | Const'2'Term Constant Term
               | Meta'2'Type String Type
   deriving (Show, Eq)
 
@@ -61,6 +61,21 @@ instance Bind Bound Term where
   remove :: Bound -> Substitution -> Substitution
   remove bound subst = filter (\ case Bound'2'Term b _ -> bound /= b
                                       _ -> False) subst
+
+
+instance Bind Rigid Term where
+  (==>) :: Rigid -> Term -> Substitution
+  (==>) f t = [Rigid'2'Term f t]
+
+  lookup :: Rigid -> Substitution -> Maybe Term
+  lookup k subst = do
+    Rigid'2'Term _ t <- find (\ case  Rigid'2'Term f _ | f == k -> True
+                                      _ -> False) subst
+    return t
+
+  remove :: Rigid -> Substitution -> Substitution
+  remove f subst = filter (\ case Rigid'2'Term free _ -> free /= f
+                                  _ -> False) subst
 
 
 instance Bind Prop'Var Formula where

@@ -7,7 +7,7 @@ import Control.Monad.Except ( throwError )
 
 
 import Syntax.Formula ( Formula )
-import Syntax.Term ( Term(..), Free(..), Constant(..) )
+import Syntax.Term ( Term(..), Var(..), Free(..), Constant(..) )
 import Syntax.Type ( Type )
 
 
@@ -41,7 +41,7 @@ instance Unify Formula Formula where
 
 instance Unify Free Constant where
   free `unify` constant = do
-    Free free `unify` App constant []
+    Var (Free free) `unify` App constant []
 
 
 instance Unify Assertion Formula where
@@ -49,7 +49,7 @@ instance Unify Assertion Formula where
   (Claimed fm) `unify` fm' = fm `unify` fm'
   (Axiom fm) `unify` fm' = fm `unify` fm'
   (Derived _ _) `unify` _ = do
-    throwError undefined  --  TODO: error
+    throwError $! Err "Unification on derived judgments (sub-proofs) and formulae does not make sense!"
 
 
 instance Unify Type Type where

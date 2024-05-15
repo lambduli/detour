@@ -6,19 +6,27 @@ module Check.Vars where
 import Data.Set qualified as Set
 import Data.Foldable ( foldl' )
 
-import Syntax.Term ( Term(..), Free, Constant )
+import Syntax.Term ( Term(..), Var(..), Free(..), Rigid(..), Constant )
 import Syntax.Formula ( Formula(Exists, Atom, Not, And, Or, Impl, Eq, Forall) )
 import Syntax.Formula qualified as F
 import Syntax.Relation ( Relation(..) )
 import Syntax.Judgment
 import Syntax.Claim qualified as C
 import Syntax.Justification
+import Syntax.Case ( Case(..) )
+import Syntax.Proof ( Proof(..) )
+import Syntax.Assumption ( Assumption(..) )
 
-
---  TODO: Do I even use this type class anywhere?
 
 class Ord v => Vars v a where
   free :: a -> Set.Set v
+
+
+instance Vars Free Var where
+  free :: Var -> Set.Set Free
+  free (Free f) = Set.singleton f
+
+  free (Rigid _) = Set.empty
 
 
 instance Vars Free Term where
@@ -27,16 +35,16 @@ instance Vars Free Term where
 
   free (App _ terms) = foldl' (\ s t -> s `Set.union` free t) Set.empty terms
 
-  free (Free f) = Set.singleton f
+  free (Var v) = free v
 
 
-instance Vars Constant Term where
-  free :: Term -> Set.Set Constant
-  free (Bound _) = Set.empty
+-- instance Vars Constant Term where
+--   free :: Term -> Set.Set Constant
+--   free (Bound _) = Set.empty
 
-  free (App c terms) = foldl' (\ s t -> s `Set.union` free t) (Set.singleton c) terms
+--   free (App c terms) = foldl' (\ s t -> s `Set.union` free t) (Set.singleton c) terms
 
-  free (Free _) = Set.empty
+--   free (Free _) = Set.empty
 
 
 instance (Vars a Term, Ord a) => Vars a Formula where
@@ -69,16 +77,67 @@ instance (Vars a Term, Ord a) => Vars a Relation where
   free (Meta'Rel _) = Set.empty
 
 
-instance (Vars a Formula, Vars a Term, Ord a) => Vars a C.Claim where
+instance (Vars a Formula, Vars a Proof, Vars a Justification, Vars a Term, Ord a) => Vars a C.Claim where
   free C.Claim{ C.formula, C.justification } = free formula `Set.union` free justification
 
 
-instance (Vars a Term, Ord a) => Vars a Justification where
-  free Rule { } = Set.empty
+-- instance Vars Constant Justification where
+--   free Rule { } = Set.empty
+--   free Theorem { } = Set.empty
+--   free Unproved = Set.empty
+--   free Induction { } = Set.empty
+--   free Substitution { on' } = free on'
+--   free Case'Analysis { proofs } = free proofs
+
+
+instance Vars Free Justification where
+  free :: Justification -> Set.Set Free
+  free Rule{ } = Set.empty
   free Theorem { } = Set.empty
   free Unproved = Set.empty
   free Induction { } = Set.empty
   free Substitution { on' } = free on'
+  free Case'Analysis { proofs } = free proofs
+
+
+instance Vars Free Proof where
+  free (Proof{ assumption, derivations }) = free assumption `Set.union` free derivations
+
+
+-- instance Vars Constant Proof where
+--   --  Constants registered in the assumption should not be collected now. They are not "free".
+--   --  They should also not be collected from derivations.
+--   --  But other constants from the assumption and from all the derivations should be collected.
+--   free (Proof{ assumption = Formula formulae, derivations }) = free (map snd formulae) `Set.union` free derivations
+--   free (Proof{ assumption = Universal constant, derivations }) = undefined
+--   free (Proof{ assumption = Existential formula constants, derivations }) = undefined
+
+
+instance Vars Free Assumption where
+  free (Formula formulae) = free (map snd formulae)
+  free (Universal constant) = Set.empty
+  free (Existential formula constants) = free (snd formula)
+
+
+instance Vars Free Judgment where
+  free (Sub'Proof proof) = free proof
+  free (Claim claim) = free claim
+  free (Alias _ fm) = free fm
+
+
+-- instance Vars Constant Judgment where
+--   free (Sub'Proof proof) = free proof
+--   free (Claim claim) = free claim
+--   free (Alias _ fm) = free fm
+
+
+instance Vars Free Case where
+  free (Case _ proof) = free proof
+
+
+-- instance Vars Constant Case where
+--   free (Case term proof) = free proof `Set.difference` free term
+
 
 
 instance (Ord v, Vars v a) => Vars v [a] where

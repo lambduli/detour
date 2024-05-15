@@ -8,6 +8,7 @@ import Data.Either.Extra ( mapRight )
 import Data.List qualified as List
 import Data.Maybe ( fromMaybe )
 import Data.Char ( isUpper )
+import Data.Map.Strict qualified as Map
 
 import Parser.Lexer  -- TODO: import list
 import Parser.Lexer qualified as A
@@ -25,7 +26,10 @@ import Syntax.Proof ( Proof(..) )
 import Syntax.Relation ( Relation(..), Prop'Var(..) )
 import Syntax.Term -- ( Term(..), Level(..), pattern Const, pattern Bound'Var )
 import Syntax.Theorem ( Theorem(..) )
-import Syntax.Type ( Type(..) )
+import Syntax.Type ( Type(..), Type'Scheme(..) )
+import Syntax.Syntax ( Syntax(..), Constructor(..) )
+import Syntax.Jud ( Jud(..) )
+import Syntax.Case ( Case(..) )
 
 import Syntax.Assumption qualified as S
 import Syntax.Claim qualified as S
@@ -43,6 +47,7 @@ import Syntax.Justification qualified as J
 import Syntax.Module qualified as M
 import Syntax.Proof qualified as S
 import Syntax.Proof qualified as P
+import Syntax.Jud qualified as Jud
 
 import Check.Substitution
 import Check.Substitute
@@ -61,7 +66,7 @@ import Check.Substitute
 %error { parseError }
 
 %token
-  IDENT       { Token.Ident $$ }
+  IDENT           { Token.Ident $$ }
 
   'ᶜ'             { Token.Constant'Before }
   'module'        { Token.Module }
@@ -84,10 +89,13 @@ import Check.Substitute
   'all'           { Token.All }
   'some'          { Token.Some }
   'unproved'      { Token.Unproved }
+  'case'          { Token.Case }
+  'analysis'      { Token.Analysis }
   'object'        { Token.Object }
   'objects'       { Token.Object }
   'proposition'   { Token.Proposition }
   'propositions'  { Token.Proposition }
+  ':='            { Token.Defines }
   ':'             { Token.Colon }
   '⊢'             { Token.Turnstile }
   '⊤'             { Token.Tautology }
@@ -105,6 +113,8 @@ import Check.Substitute
   ']'             { Token.Box'Close }
   '{'             { Token.Bracket'Open }
   '}'             { Token.Bracket'Close }
+
+  '->'            { Token.Type'Arrow }
 
   '_'             { Token.Underscore }
   '='             { Token.Equal }
@@ -134,13 +144,14 @@ import Check.Substitute
 
 -- TODO: return Module
 Module      ::  { Module }
-            :   'module' ModuleName ConstantsD Aliases Axioms {- Syntax -} Theorems
+            :   'module' ModuleName ConstantsD Aliases Axioms Syntax Judgments Theorems
                                             { M.Module{ M.name = $2
                                                       , M.constants = $3
                                                       , M.aliases = $4
                                                       , M.axioms = $5
-                                                      -- , M.syntax = $6
-                                                      , M.theorems = $6 } }
+                                                      , M.syntax = $6
+                                                      , M.judgments = $7
+                                                      , M.theorems = $8 } }
                                             -- { ($1, $2, $3, $4) }
 
 
@@ -148,10 +159,14 @@ ModuleName  ::  { String }
             :   IDENT                       { $1 }
 
 
-ConstantsD  ::  { [String] }
+ConstantsD  ::  { [(String, Type'Scheme)] }
             :   'constants' ':' Consts      {%  do
                                                 { s <- alexGetUserState
-                                                ; alexSetUserState s{ A.constants = $3 }
+                                                ; let constants = map (\ (s, _) -> s) $3
+                                                ; alexSetUserState s{ A.constants = constants
+                                                                    , A.typing'ctx = Map.fromList $3 }
+                                                --  TODO: store the constants with their type schemata too
+                                                --        so that they can be put as a starting typing context
                                                 ; return $3 } }
             |   {-  empty   -}              { [] }
 
@@ -186,9 +201,9 @@ Ali         ::  { String }
                                                         ; Nothing -> do { return $1 } } } }
 
 
-Consts      ::  { [String] }
-            :   IDENT                       { [ $1 ] }
-            |   IDENT ',' Consts            { $1 : $3 }
+Consts      ::  { [(String, Type'Scheme)] }
+            :   TypeAnn                       { [ $1 ] }
+            |   TypeAnn ',' Consts            { $1 : $3 }
 
 
 Axioms      ::  { [(String, Formula)] }
@@ -200,15 +215,86 @@ Axs         ::  { (String, Formula) }
             :   'axiom' IDENT ':' Formula   { ($2, $4) }
 
 
--- Syntax      ::  { [(String, Syntax)] }
---             :   Syn Syntax                  { $1 : $2 }
---             |   {- empty  -}                { [] }
+Syntax      ::  { [(String, Syntax)] }
+            :   Syn Syntax                  { $1 : $2 }
+            |   {- empty  -}                { [] }
 
 
--- Syn         ::  { (String, Syntax) }
---             :   'syntax' PropVar Constructors
---                                             {  }
+Syn         ::  { (String, Syntax) }
+            :   'syntax' PropVar Constructors
+                                            { ($2, Syntax $3)  }
 
+
+Constructors
+            ::  { [Constructor] }
+            :   '=' Constructor ConstrsAux  { $2 : $3 }
+            |   {-  empty -}                { [] }
+
+
+Constructor ::  { Constructor }
+            :   IDENT                       {% do
+                                                { s <- alexGetUserState
+                                                ; alexSetUserState s{ A.constants = $1 : A.constants s }
+                                                ; return $! Constructor $1 [] } }
+            |   IDENT '(' Type Types ')'    {% do
+                                                { s <- alexGetUserState
+                                                ; alexSetUserState s{ A.constants = $1 : A.constants s }
+                                                ; return $! Constructor $1 ($3 : $4) } }
+
+
+--  TODO: because of the | meaning two different things, this is a bit broken
+ConstrsAux  ::  { [Constructor] }
+            :   BEGIN_LAYOUT Constructor ConstrsAux END_LAYOUT  { $2 : $3 }
+            |   {-  empty -}                { [] }
+
+
+Types       ::  { [Type] }
+            :   ',' Type Types              { $2 : $3 }
+            |   {-  empty -}                { [] }
+
+
+Judgments   ::  { [Jud] }
+            :   Jud Judgments               { $1 : $2 }
+            |   {-  empty -}                { [] }
+
+
+Jud         ::  { Jud }
+            :   'judgment' IDENT '=' Constructor Rules
+                                            { let { Constructor name types = $4 }
+                                              in  Jud $2 (name, types) $5 }
+
+
+Rules       ::  { [Jud.Rule] }
+            :   Rule Rules                  { $1 : $2}
+            |   {-  empty -}                { [] }
+
+
+Rule        ::  { Jud.Rule }
+            :   'rule' IDENT ':' BEGIN_LAYOUT Formulas '---' IDENT Formula END_LAYOUT
+                                            {% do
+                                                { unless  ($2 == $7)
+                                                          (report'error ("A rule should have the same name as in declaration.\nThe rule `" ++ $2 ++ "' has also been given a name `" ++ $7 ++ "'.\nPick just one!"))
+                                                ; return $! Jud.Rule $2 [] $5 $8 } }
+            |   'rule' 'schema' IDENT 'for' 'all' 'object' Objects ':'
+                BEGIN_LAYOUT Formulas '---' IDENT Formula END_LAYOUT
+                                            {% do
+                                                { unless  ($3 == $12)
+                                                          (report'error ("A rule should have the same name as in declaration.\nThe rule `" ++ $3 ++ "' has also been given a name `" ++ $12 ++ "'.\nPick just one!"))
+                                                ; return $! Jud.Rule $3 $7 $10 $13 } }
+
+
+Objects     ::  { [(String, Type)] }
+            :   TypeAnn2                    { [$1] }
+            |   TypeAnn2 ',' Objects        { $1 : $3 }
+
+
+TypeAnn2  ::  { (String, Type) }
+          :   '(' IDENT ':' PropVar ')'     { ($2, Type'Const $4) }
+
+
+Formulas    ::  { [Formula] }
+            :   Formula Formulas            { $1 : $2 }
+            |   {-  empty -}                { [] }
 
 
 Theorems    ::  { [Theorem] }
@@ -265,7 +351,7 @@ B           ::  { () }
                                                 ; alexSetUserState s{ bound = [] :  binders } } }
 
 
-Binders     ::  { [(String, Type)] }
+Binders     ::  { [(String, Type'Scheme)] }
             :   {-  empty -}                { [] }
             |   TypeAnn Binders             {% do
                                                 { s <- alexGetUserState
@@ -275,11 +361,16 @@ Binders     ::  { [(String, Type)] }
                                                 ; return ($1 : $2) } }
 
 
-TypeAnn   ::  { (String, Type) }
-          :   '(' IDENT ':' PropVar ')'   { ($2, Type $4) }
+TypeAnn   ::  { (String, Type'Scheme) }
+          :   '(' IDENT ':' Type ')'      { ($2, Forall'T [] $4) }
           |   IDENT                       {% do
                                               { n <- fresh'name
-                                              ; return ($1, Type n) } }
+                                              ; return ($1, Forall'T [n] (Type'Var n)) } }
+
+
+Type      ::  { Type }
+          :   PropVar                     { Type'Const $1 }
+          |   Type '->' Type              { Type'Fn $1 $3 }
 
 
 QFormula    ::  { Formula }
@@ -329,20 +420,24 @@ Term        ::  { Term }
                                                 { Just terms -> return $! App (S.C $1) terms
                                                 ; Nothing -> do
                                                   { s <- alexGetUserState
-                                                  ; let cons = consts s
+                                                  ; let cons = A.constants s
+                                                  ; let rs = A.rigids s
                                                   ; let alis = aliases s
                                                   ; let bs = bound s
-                                                  ; let is'constant = List.any ($1 `elem`) cons
+                                                  ; let is'constant = $1 `elem` cons
                                                   ; let is'upper = isUpper (head $1)
                                                   ; let is'bound = List.any ($1 `elem`) bs
+                                                  ; let is'rigid = List.any ($1 `elem`) rs
                                                   ; if is'bound
                                                     then return (Bound'Var $1)
-                                                    else  if is'upper || is'constant
-                                                          then return (Const $1)
-                                                          else  case List.lookup $1 alis of
-                                                                { Just tm -> do { return tm }
-                                                                ; Nothing -> return $! Free'Var $1 } } } }
-                                                                -- ; Nothing -> do { report'error ("Parsing Error: Unbound variable `" ++ $1 ++ "'\n" ++ "Perhaps you forgot to define a constant or an alias?") } } } } }
+                                                    else  if is'rigid
+                                                          then return (Var (Rigid (R $1)))
+                                                          else  if is'upper || is'constant
+                                                                then return (Const $1)
+                                                                else  case List.lookup $1 alis of
+                                                                      { Just tm -> do { return tm }
+                                                                      ; Nothing -> return $! Free'Var $1 } } } }
+                                                                      -- ; Nothing -> do { report'error ("Parsing Error: Unbound variable `" ++ $1 ++ "'\n" ++ "Perhaps you forgot to define a constant or an alias?") } } } } }
                                         
             |   '(' Term ')'                { $2 }
 
@@ -356,6 +451,8 @@ Proof       ::  { [Judgment] }
                                             -- ; $1.inScope = $$.inScope
                                             -- ; $2.inScope = $$.inScope `union` $1.outScope
                                             -- ; $$.outScope = $1.outScope `union` $2.outScope }
+            |   '_' PropVar ':=' Formula Proof
+                                            { (JD.Alias ('_' : $2) $4) : $5 }
             |   {- empty -}                 { [] }
                                             -- ; $$.outScope = empty }
 
@@ -373,31 +470,31 @@ SubProofAux ::  { (Assumption, [Judgment]) }
             :   BEGIN_LAYOUT Assumption '---' Proof END_LAYOUT
                                             {% do
                                                 { s <- alexGetUserState
-                                                ; let _ : cs = consts s
-                                                ; alexSetUserState s{ consts = cs }
+                                                ; let _ : rs = rigids s
+                                                ; alexSetUserState s{ rigids = rs }
                                                 ; return ($2, $4) }  }
 
 
 Assumption  ::  { Assumption }
-            :   ForAll Constants            {% do
+            :   ForAll Rigids               {% do
                                                 { s <- alexGetUserState
-                                                ; let cs = consts s
-                                                ; let strs = map (\ ((C n), _) -> n) $2
-                                                ; alexSetUserState s{ consts = strs : cs }
+                                                ; let rs = rigids s
+                                                ; let strs = map (\ ((R n), _) -> n) $2
+                                                ; alexSetUserState s{ rigids = strs : rs }
                                                 ; return $! Universal $2 } }  --  TODO: all these identifiers must be recorded in the environment to be parsed as constants
             |   AssumedFormulae             {% do
                                                 { s <- alexGetUserState
-                                                ; let cs = consts s
-                                                ; alexSetUserState s{ consts = [] : cs }
+                                                ; let rs = rigids s
+                                                ; alexSetUserState s{ rigids = [] : rs }
                                                 ; return $! Formula $1 } }
-            |   AssumedFormula 'for' 'some' Constants
+            |   AssumedFormula 'for' 'some' Rigids
                                             {% do
                                                 { s <- alexGetUserState
-                                                ; let cs = consts s
-                                                ; let strs = map (\ ((C n), _) -> n) $4
-                                                ; let subst = concatMap (\ s -> F s ==> Const s) strs
+                                                ; let rs = rigids s
+                                                ; let strs = map (\ ((R n), _) -> n) $4
+                                                ; let subst = concatMap (\ s -> F s ==> Var (Rigid (R s))) strs
                                                 ; let fm = apply subst $1
-                                                ; alexSetUserState s{ consts = strs : cs }
+                                                ; alexSetUserState s{ rigids = strs : rs }
                                                 ; return $! Existential fm $4 } }   --  TODO: all these identifiers must be recorded in the env to be parsed as constants
 
 
@@ -424,9 +521,16 @@ AssumedFormulae
 --             |   IDENT ',' Universals        { C $1 : $3 }
 
 
-Constants   ::  { [(Constant, Type)] }
-            :   TypeAnn                     { let { (n, t) = $1 } in [ (C n, t) ] }
-            |   TypeAnn ',' Constants       { let { (n, t) = $1 } in (C n, t) : $3 }
+Rigids      ::  { [(Rigid, Type'Scheme)] }
+            :   TypeAnn1                    { let { (n, t) = $1 } in [ (R n, t) ] }
+            |   TypeAnn1 ',' Rigids         { let { (n, t) = $1 } in (R n, t) : $3 }
+
+
+TypeAnn1  ::  { (String, Type'Scheme) }
+          :   '(' IDENT ':' PropVar ')'   { ($2, Forall'T [] (Type'Const $4)) }
+          |   IDENT                       {% do
+                                              { n <- fresh'name
+                                              ; return ($1, Forall'T [] (Type'Var n)) } }
 
 
 Claim       ::  { Claim }
@@ -447,10 +551,64 @@ Name        ::  { Maybe String }
 
 Just        ::  { Justification }
             :   'by' 'rule' RuleKind OnIdents     { Rule{ J.kind = $3, on = $4 } }
-            |   'by' 'induction' OnIdents         { Induction { on = $3 } }
+            |   'by' 'induction' 'on' Term        { Induction { on'1 = $4 } }
             |   'by' 'unproved'                   { Unproved }
             |   'by' 'axiom' IDENT                { Rule{ J.kind = Repetition, on = [$3] } }
             |   'by' 'theorem' IDENT OnIdents     { J.Theorem { J.name = $3, on = $4 } }
+            |   'by' 'case' 'analysis' 'on' Term ':' Cases
+                                                  { Case'Analysis { on'1 = $5, proofs = $7 } }
+
+
+Cases       ::  { [Case] }
+            :   Case Cases                        { $1 : $2 }
+            |   {-  empty -}                      { [] }
+
+
+Case        ::  { Case }
+            :   'case' Pattern '->' SubProofAux   {% do
+                                                    { s <- alexGetUserState
+                                                    ; let (_ : rs) = rigids s
+                                                    ; alexSetUserState s{ rigids = rs }
+                                                    ; return $! Case $2 (Proof{ P.name = Nothing
+                                                                              , assumption = fst $4
+                                                                              , derivations = snd $4 }) } }
+
+
+Pattern     ::  { (Constant, [Rigid]) }
+            :   IDENT 'ᶜ' PatVars                 {% do
+                                                      { s <- alexGetUserState
+                                                      ; let rs = rigids s
+                                                      ; let strs = map (\ (R s) -> s) $3
+                                                      ; alexSetUserState s{ rigids = strs : rs }
+                                                      ; return (C $1, $3) } }
+
+            |   IDENT PatVars                     {%  do
+                                                      { s <- alexGetUserState
+                                                      ; let rs = rigids s
+                                                      ; let strs = map (\ (R s) -> s) $2
+                                                      ; alexSetUserState s{ rigids = strs : rs}
+                                                      ; return (C $1, $2) } }
+                                        
+            |   '(' Pattern ')'                   { $2 }
+
+
+PatVars     ::  { [Rigid] }
+            :   '(' PatVs ')'                     { $2 }
+            |   {-  empty -}                      { [] }
+
+
+PatVs       ::  { [Rigid] }
+            :   PatVss                            { $1 }
+            |   {-  empty -}                      { [] }
+
+
+PatVss      ::  { [Rigid] }
+            :   PatV ',' PatVss                   { $1 : $3 }
+            |   PatV                              { [$1] }
+
+
+PatV        ::  { Rigid }
+            :   IDENT                             { R $1 }
 
 
 RuleKind    ::  { Rule }

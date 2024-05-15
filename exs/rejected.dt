@@ -1,0 +1,119 @@
+module rejected
+
+
+axiom one : ∀ (x : 𝕏) : P(x)
+
+
+axiom two : ∀ (y : 𝕐) : F(y)
+
+
+axiom foo : ∀ o : Foo(o)
+
+axiom id : ∀ i : Id(i, i)
+
+
+
+-- --  this should be rejected
+-- --  but clearly, wasn't
+-- --  TODO: FIX THIS!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+-- --  BUT IS IT REALLY WRONG? It seems that my intuition has failed me at first.
+-- --  If `n` has unknown type that means that the ∀-elim or a custom rule
+-- --  does not require it to have any specific type.
+-- --  So we can just say "it was always ℕ".
+-- --  So it seems ok that if passed.
+-- theorem rejected-1 : ∃ (n : ℕ) : Foo(n)
+-- a : Foo(n)  by rule ∀-elim on foo
+-- r : ∃ (n : ℕ) : Foo(n)  by rule ∃-intro on a
+-- --  so now it should mean that n has type ℕ
+-- --  so I can't make it anything else
+-- --  so I can't do this 
+-- _ : ∃ (i : 𝕏) : Foo(i)  by rule ∃-intro on a
+-- ∃ (n : ℕ) : Foo(n)  by rule repetition on r
+
+
+
+
+-- theorem rejected3 : ∀ (o : 𝕏) : Id(o, o)
+-- i : | for any p
+--     |---------------------------------
+--     |
+--     | P(p)  by rule ∀-elim on one
+--     | F(p)  by rule ∀-elim on two   -- TODO: this SHOULD make it fail !!!!!!!!!!!!!!!!!!!!
+--     | Id(p, p)  by rule ∀-elim on id
+-- 
+-- e : | for any g
+--     |---------------------------------
+--     |
+--     | P(g)  by rule ∀-elim on one -- TODO: this SHOULD make it fail !!!!!!!!!!!!!!!!!!!!
+--     | Id(g, g)  by rule ∀-elim on id
+-- 
+-- --  the first one fails when uncommented in any causes
+-- --  the second one fails if I try to do ∀-intro on e
+-- --  the reason the e fails is because
+-- --  the proof assumes g of any type
+-- --  the corresponding universal is also "type-polymorphic"
+-- --  but within that sub-proof I do something that assumes that g : 𝕏
+-- --  even if that result is not used for the derived formula in the sub-proof
+-- --  it has a same effect as if it was
+-- --  I've just restricted the type of g to exactly 𝕏
+-- --  
+-- --  it's as if I have a polymorphic function e that takes some g of unknown type
+-- --  and then I pass that g to a function one that only accepts 𝕏s
+-- --  clearly, I am making assumptions about the type of g
+-- 
+-- ∀ o : Id(o, o)  by rule ∀-intro on e
+
+
+
+
+
+
+-- theorem rejected2 : ∀ (o : 𝕏) : Id(o, o)
+-- i : | for any (p : 𝕏)
+--     |---------------------------------
+--     |
+--     | P(p)  by rule ∀-elim on one
+--     | F(p)  by rule ∀-elim on two   --  this causes it to fail
+--     | Id(p, p)  by rule ∀-elim on id
+-- 
+-- ∀ (o : 𝕏) : Id(o, o)  by rule ∀-intro on i
+
+
+
+
+
+-- theorem rejected1 : ∀ (o : 𝕏) : Id(o, o)
+-- i : | for any (p : 𝕏)
+--     |---------------------------------
+--     |
+--     | P(p)  by rule ∀-elim on one --  this is here just for nothing
+--     | Id(p, p)  by rule ∀-elim on id
+-- 
+-- ∀ o : Id(o, o)  by rule ∀-intro on i
+--  this must fail
+--  we used a stricter assumption — we assumed only all such ps that are of type 𝕏
+--  it would be a mistake to derive ∀ o : ... from it
+
+
+
+
+-- theorem rejected : ∀ o : Id(o, o)
+-- i : | for any (p : A)
+--     |---------------------------------
+--     |
+--     | P(p)  by rule ∀-elim on one
+--     | F(p)  by rule ∀-elim on two
+--     | Id(p, p)  by rule ∀-elim on id
+--     | 
+-- 
+-- ∀ o : Id(o, o)  by rule ∀-intro on i
+
+
+
+-- theorem ok : ∀ o : Id(o, o)
+-- i : | for any p
+--     |---------------------------------
+--     |
+--     | Id(p, p)  by rule ∀-elim on id
+-- 
+-- ∀ o : Id(o, o)  by rule ∀-intro on i

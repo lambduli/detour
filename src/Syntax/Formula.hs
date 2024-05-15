@@ -7,7 +7,7 @@ import Data.List ( intercalate )
 
 -- import Syntax.Term ( Term(..) )
 import Syntax.Relation ( Relation(..), Prop'Var(..) )
-import Syntax.Type ( Type )
+import Syntax.Type ( Type, Type'Scheme )
 
 
 
@@ -22,8 +22,8 @@ data Formula  = True                    -- ⊤
               -- | Forall String Formula   -- ∀ x : P(x)
               -- | Exists String Formula   -- ∃ y : G(y)
 
-              | Forall (String, Type) Formula  --  ∀ ℕ : P(ℕ)
-              | Exists (String, Type) Formula  --  ∃ ℕ : P(ℕ)
+              | Forall (String, Type'Scheme) Formula  --  ∀ ℕ : P(ℕ)
+              | Exists (String, Type'Scheme) Formula  --  ∃ ℕ : P(ℕ)
   deriving (Eq)
 
 

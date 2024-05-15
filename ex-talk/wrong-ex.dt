@@ -1,0 +1,23 @@
+module ex
+
+constants : α, β
+
+
+theorem wrong-ex : ∃ x : P(x), ∀ x : Id(x, x) ⊢ ⊤
+| p1 : ∃ x : P(x)
+| p2 : ∀ x : Id(x, x)
+|--------------------------------------
+|
+| id : Id(i, i)  by rule ∀-elim on p2
+|
+|
+| e : | p3 : P(α) for some α
+|     |--------------------------------
+|     |
+|     | fail : Id(α, i)  by rule repetition on id
+|     |
+|     | ⊤  by rule ⊤-intro
+|
+| _ : ⊤  by rule ∃-elim on p1, e
+|
+| ⊤  by rule ⊤-intro

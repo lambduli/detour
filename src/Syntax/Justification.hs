@@ -4,15 +4,17 @@ module Syntax.Justification where
 import Data.List.Extra ( intercalate )
 
 import Syntax.Term ( Term )
+import Syntax.Case ( Case )
 -- import {-# SOURCE #-} Syntax.Proof ( Proof )
 
 
 data Justification  = Rule  { kind :: Rule, on :: [String] }
                     | Theorem { name :: String, on :: [String] }
                     | Unproved
-                    | Induction { on :: [String] }
+                    | Induction { on'1 :: Term }  --  TODO: add the cases
                     | Substitution { on' :: Term, using :: String } --  TODO: figure out a better name than on'
-                    -- | Case { on :: String, proofs :: [(Proof, String)] }  --  The String is the name of the rule used.
+                    -- | Inversion { on :: [String] }
+                    | Case'Analysis { on'1 :: Term, proofs :: [Case] }
   deriving (Eq)
 
 
@@ -20,8 +22,9 @@ instance Show Justification where
   show Rule{ kind, on } = "rule " ++ show kind ++ " on " ++ intercalate ", " on
   show Theorem { name, on } = "theorem " ++ name ++ " on " ++ intercalate ", " on
   show Unproved = "unproved"
-  show Induction { on } = "induction on " ++ intercalate ", " on
+  show Induction { on'1 } = "induction on " ++ show on'1
   show Substitution { on', using } = "substitution on " ++ show on' ++ " using " ++ using
+  show Case'Analysis{ on'1 , proofs } = "case analysis on " ++ show on'1 ++ " : " ++ intercalate "\n" (map show proofs)
 
 
 data Rule = Impl'Intro

@@ -1,13 +1,13 @@
 module Check.Error where
 
 
-import Syntax.Term ( Term )
-import Syntax.Formula ( Formula )
-import Syntax.Theorem ( Theorem )
-import Syntax.Judgment ( Judgment )
-import Syntax.Justification ( Rule )
+-- import Syntax.Term ( Term )
+-- import Syntax.Formula ( Formula )
+-- import Syntax.Theorem ( Theorem )
+-- import Syntax.Judgment ( Judgment )
+-- import Syntax.Justification ( Rule )
 
-import {-# SOURCE #-} Check.Assertion ( Assertion )
+-- import {-# SOURCE #-} Check.Assertion ( Assertion )
 
 
 -- TODO:  Track the location of a corresponding token in the source-file.

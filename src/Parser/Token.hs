@@ -28,7 +28,9 @@ data Token  = Ident String
             | Some            --  some
             | Object          --  object / objects
             | Proposition     --  proposition / propositions
-            | Unproved
+            | Unproved        --  unproved
+            | Case            --  case
+            | Analysis        --  analysis
 
             | Tautology       --  ⊤
             | Contradiction   --  ⊥
@@ -40,6 +42,8 @@ data Token  = Ident String
             | Implication     --  ==>
             | Equivalence     --  <=>
 
+            | Type'Arrow      --  ->
+
             | Paren'Open      --  (
             | Paren'Close     --  )
             | Box'Open        --  [
@@ -49,6 +53,7 @@ data Token  = Ident String
 
             | Underscore      --  _
             | Equal           --  =
+            | Defines         --  :=
 
             --  layout
             | Pipe            --  |

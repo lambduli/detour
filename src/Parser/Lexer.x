@@ -8,14 +8,14 @@ import Control.Monad.State ( MonadState(get, put), gets, StateT( runStateT ) )
 import Data.Word ( Word8 )
 import Data.Char ( ord )
 import Data.List ( uncons )
+import Data.Map.Strict qualified as Map
 
 import Parser.Token ( Token )
 import Parser.Token qualified as Token
 
 import Syntax.Term ( Term )
+import Syntax.Type ( Type'Scheme )
 
-
--- import Debug.Trace ( trace, traceM )
 
 }
 
@@ -28,7 +28,8 @@ $lower                = [a-z]
 
 $digit                = [0-9]
 
-$character            = [!-\' \*-\+ \--Z \\ \^-z \| \~ \¡-\ʯ \Ͱ-\⏿#\ᶜ \⟰-\⟿ \⤀-\⫿ \Ⱡ-\⳿ \꜠-\ꟿ]
+-- $character            = [!-\' \*-\+ \--Z \\ \^ \`-z \| \~ \¡-\ʯ \Ͱ-\⏿#\ᶜ \⟰-\⟿ \⤀-\⫿ \Ⱡ-\⳿ \꜠-\ꟿ]
+$character            = [!-\' \*-\+ \--Z \\ \^ \`-z \| \~ \¡-\🢱#\ᶜ]
 
 -- $special              = [\∀ \∃ \= \> \< \¬ \∧ \∨ \⊥ \⊤ \~ \( \) \{ \} \[ \] \' \- \_ \" \| ]
 
@@ -78,12 +79,15 @@ $space+                 ;
   -- "axioms"                { emit Token.Axioms }
   "axiom"                 { emit Token.Axiom }
   "aliases"               { emit Token.Aliases }
+  ":="                    { emit Token.Defines }
   ":"                     { emit Token.Colon }
   "⊢"                     { emit Token.Turnstile }
   "by"                    { emit Token.By }
   "rule"                  { emit Token.Rule }
   "induction"             { emit Token.Induction }
   "unproved"              { emit Token.Unproved }
+  "case"                  { emit Token.Case }
+  "analysis"              { emit Token.Analysis }
   "on"                    { emit Token.On }
   "for"                   { emit Token.For }
   "all"                   { emit Token.All }
@@ -135,6 +139,8 @@ $space+                 ;
   "<==>"                  { emit Token.Equivalence }
   "⟺"                     { emit Token.Equivalence }
 
+  "->"                    { emit Token.Type'Arrow }
+
   "_"                     { emit Token.Underscore }
 
   "|"                     { pipe'line }
@@ -148,7 +154,7 @@ $space+                 ;
 
   -- @number                 { emit Token.Number }
 
-  $newline                { \ _ _ -> {- traceM "newline at <0>, going <behind>" >> -} alexSetStartCode behind >> alexMonadScan }
+  $newline                { \ _ _ -> alexSetStartCode behind >> alexMonadScan }
 
 }
 
@@ -173,8 +179,6 @@ $space+                 ;
 end'layout :: AlexInput -> Int -> Alex Token
 end'layout (AlexPn _ line col, _, _, str) len = do
   s@AlexUserState{ layouts } <- alexGetUserState
-
-  -- traceM ("trace [end'layout] line " ++ show line ++ " column " ++ show col ++ " layouts " ++ show layouts)
 
   --  TODO: all of this is wrong
   --        I can't just pop all of the layouts but only emit one token!!!
@@ -230,7 +234,6 @@ emit :: Token -> AlexInput -> Int -> Alex Token
 emit t (AlexPn _ line col, _, _, _) _ = do
   s@AlexUserState{ layouts } <- alexGetUserState
   sc <- alexGetStartCode
-  -- traceM ("trace [emit] line " ++ show line ++ " column " ++ show col ++ " layouts " ++ show layouts ++ " start code " ++ show sc ++ "  | start code for behind is " ++ show behind)
 
   return t
 
@@ -239,7 +242,6 @@ emit' :: (String -> Token) -> AlexInput -> Int -> Alex Token
 emit' mk't (AlexPn _ line col, ch, bytes, input) len  = do
   s@AlexUserState{ layouts } <- alexGetUserState
   sc <- alexGetStartCode
-  -- traceM ("trace [emit'] line " ++ show line ++ " column " ++ show col ++ " layouts " ++ show layouts ++ " start code " ++ show sc ++ "  | start code for behind is " ++ show behind)
 
   return $! mk't (take len input)
 
@@ -250,18 +252,20 @@ alexEOF = handle'EOF
 data AlexUserState = AlexUserState{ layouts     :: ![Int]
                                   , constants   :: ![String]
                                   , bound       :: ![[String]]
-                                  , consts      :: ![[String]]
+                                  , rigids      :: ![[String]]
                                   , aliases     :: ![(String, Term)]
-                                  , counter     :: !Int }
+                                  , counter     :: !Int
+                                  , typing'ctx  :: !(Map.Map String Type'Scheme) }
 
 
 alexInitUserState :: AlexUserState
 alexInitUserState = AlexUserState { layouts           = []
                                   , constants         = []
                                   , bound             = []
-                                  , consts            = []
+                                  , rigids            = []
                                   , aliases           = []
-                                  , counter           = 0 }
+                                  , counter           = 0
+                                  , typing'ctx        = Map.empty }
 
 
 fresh'name :: Alex String
@@ -278,30 +282,23 @@ pipe'line (AlexPn _ line col, _, _, _) _ = do
   let ls = layouts s
 
   sc <- alexGetStartCode
-  
-  -- traceM ("trace [pipe'line] line " ++ show line ++ " column " ++ show col ++ " layouts " ++ show ls ++ " sc " ++ show sc)
 
   case ls of
     [] -> do
       --  No layout seen yet. Acting as if the current position is larger than the current layout.
-      -- traceM ("line " ++ show line ++ " column " ++ show col ++ " layouts " ++ show ls ++ " sc " ++ show sc)
-      -- traceM ("trace [pipe'line #0] line " ++ show line ++ " column " ++ show col ++ " layouts " ++ show ls ++ " sc " ++ show sc)
       alexSetUserState s{ layouts = col : ls }
       return Token.Begin'Layout
 
     (p : _) -> do
       if col == p
       then do
-        -- traceM ("trace [pipe'line #1] line " ++ show line ++ " column " ++ show col ++ " layouts " ++ show ls ++ " sc " ++ show sc)
         alexSetStartCode 0
         alexMonadScan
       else  if col > p
             then do
-              -- traceM ("trace [pipe'line #2] line " ++ show line ++ " column " ++ show col ++ " layouts " ++ show ls ++ " sc " ++ show sc)
               alexSetUserState s{ layouts = col : ls }
               return Token.Begin'Layout
             else do
-              -- traceM ("trace [pipe'line #3] line " ++ show line ++ " column " ++ show col ++ " layouts " ++ show ls ++ " sc " ++ show sc)
               -- alexSetStartCode behind
               alexMonadScan
 

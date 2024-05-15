@@ -3,20 +3,21 @@ module Check.Check where
 
 import Control.Monad.Reader ( ReaderT, asks )
 import Control.Monad.State ( MonadState(get, put), gets, StateT )
-import Control.Monad.Except ( Except, throwError )
+import Control.Monad.Except ( Except, throwError, withError )
 
 import Data.Map.Strict qualified as Map
 
-import Syntax.Term ( Term, Constant(..), Bound(..), Free(..) )
+import Syntax.Term ( Term(..), Var(..), Rigid(..), Constant(..), Bound(..), Free(..) )
 import Syntax.Theorem ( Theorem )
 import Syntax.Formula ( Formula(..) )
 import Syntax.Relation ( Relation(..), Prop'Var(..) )
-import Syntax.Type ( Type(..) )
+import Syntax.Type ( Type(..), Type'Scheme(..) )
 
 import Check.Error ( Error(..) )
 import Check.Environment ( Environment(..) )
 import Check.State ( State(..), Level(..) )
-import Check.Constraint ( Constraint )
+import Check.Constraint ( Constraint(..) )
+import {-# SOURCE #-} Check.Types ( instantiate'scheme )
 
 
 type Check a
@@ -28,19 +29,11 @@ type Check a
       a
 
 
-{-  Allocates a new empty slot for all the given Free variables.  -}
--- allocate'metas :: [Free] -> Check [Int]
--- allocate'metas vars = do
---   mapM allocate'meta vars
+withError' m e = withError (const e) m
 
 
-{-  Allocates a new empty slot for the given Free variable. -}
--- allocate'meta :: Free -> Check Int
--- allocate'meta _ = do
---   State{ metas = old, counter = new'slot } <- get
---   let new = Map.insert new'slot Nothing old
---   put State{ metas = new, counter = new'slot + 1 }
---   return new'slot  
+because :: String -> Check a -> Check a
+because msg m = withError (\ (Err msg') -> (Err (msg ++ "\nand " ++ msg'))) m
 
 
 fresh'name :: Check String
@@ -73,21 +66,7 @@ fresh'constant :: Level -> Check Constant
 fresh'constant l = do
   name <- fresh'name
 
-  s <- get
-  const'depths <- gets const'depth'context
-  put s{ const'depth'context = Map.insert (C name) l const'depths }
-
   return (C name)
-
-
-const'level :: Constant -> Check Level
-const'level c = do
-  const'depths <- gets const'depth'context
-  case Map.lookup c const'depths of
-    Nothing -> do
-      throwError (Err ("Internal Error. A constant `" ++ show c ++ "' is not recorded in the context."))
-
-    Just l -> return l
 
 
 free'level :: Free -> Check Int
@@ -95,15 +74,19 @@ free'level f = do
   free'depths <- gets free'depth'context
   case Map.lookup f free'depths of
     Nothing -> do
-      throwError (Err ("Internal Error. A free variable `" ++ show f ++ "' is not recorded in the context."))
+      throwError (Err ("Internal Error. The free variable `" ++ show f ++ "' is not recorded in the context."))
 
     Just l -> return l
 
 
--- assign'constant :: Level -> a -> Check (a, Constant)
--- assign'constant l a = do
---   name <- fresh'name
---   return (a, C l name)
+rigid'level :: Rigid -> Check Int
+rigid'level r = do
+  rigid'depths <- gets rigid'depth'context
+  case Map.lookup r rigid'depths of
+    Nothing -> do
+      throwError (Err ("Internal Error. The rigid variable `" ++ show r ++ "' is not recorded in the context."))
+
+    Just l -> return l
 
 
 fresh'bound :: Check Bound
@@ -117,7 +100,14 @@ fresh'type :: Check Type
 fresh'type = do
   n <- fresh'name
 
-  return (Type n)
+  return (Type'Var n)
+
+
+fresh'type'const :: Check Type
+fresh'type'const = do
+  n <- fresh'name
+
+  return (Type'Const n)
 
 
 class Collect a where
@@ -157,11 +147,108 @@ look'up'theorem name = do
       return thm
 
 
-type'of :: String -> Check Type
-type'of name = do
-  t'ctx <- asks typing'ctx
+look'up'type :: String -> Check Type
+look'up'type name = do
+  t'ctx <- gets typing'ctx
 
   case Map.lookup name t'ctx of
     Nothing -> throwError $! Err ("Type Error. I don't know a variable or a constant named `" ++ name ++ "'.")
 
-    Just ty -> return ty
+    Just ts -> do
+      t <- instantiate'scheme ts
+      return t
+
+
+type'of :: Term -> Check Type
+type'of (Var v) = do
+  t'ctx <- gets typing'ctx
+  let s = case v of
+            Free (F s) -> s
+            Rigid (R s) -> s
+
+  case Map.lookup s t'ctx of
+    Nothing -> do
+      throwError $! Err ("I can not get a type of a variable `" ++ s ++ "' because I don't know it.")
+
+    Just ts -> do
+      t <- instantiate'scheme ts
+      return t
+
+-- type'of (App (C s) []) = do
+--   t'ctx <- asks typing'ctx
+
+--   case Map.lookup s t'ctx of
+--     Nothing -> do
+--       throwError $! Err ("I can not get a type of a constant `" ++ s ++ "' because I don't know it.")
+
+--     Just t -> return t
+
+type'of (App (C s) args) = do
+  --  get the type of the function/constant
+  --  it should be a function type
+  --  infer all the types of the arguments and unify them with the types of parameters in the function type
+
+  t'ctx <- gets typing'ctx
+
+  case Map.lookup s t'ctx of
+    Nothing -> do
+      throwError $! Err ("I can not get a type of a constant `" ++ s ++ "' because I don't know it.")
+
+    Just ts -> do
+      t <- instantiate'scheme ts
+      unify'args args t
+
+  where unify'args :: [Term] -> Type -> Check Type
+        unify'args [] t = return t
+        unify'args (t : ts) ty = do
+          t't <- type'of t
+
+          par <- fresh'type
+          res <- fresh'type
+          let fn't = Type'Fn par res
+
+          collect (fn't :≡: ty)
+          collect (t't :≡: par)
+
+          unify'args ts res
+
+
+type'of term = undefined  --  TODO: what about Bound?
+--  TODO: TYPE-CHECK
+--  How do I know what type terms are?
+--  Free-vars need to be in the typing environment.
+--  Bound-vars are not there yet, but I think I can get them there using local.
+--    What I am thinking about is this—when I am unifying two quantified formulae
+--    I rename two bound variables to a same name and then unify those formulae.
+--    Bounds unify only with bounds, so if I run the unification of the bodies within a local
+--    that should be enough. Because Bounds can't even unify with free-vars.
+--    This should mean that they should never end up in a substitution, right?
+--    What if I want to unify a free-var with an application featuring a bound-var?
+--    Like this: x :≡: ƒ(α, b)    where α is a bound-var
+--    This produces a substitution containing the uniqly created bound-var `α`.
+--    And I thought it could never end up in the substitution.
+--    This could mean that later, when I try to unify something else with `α` I will need its type
+--    and I can't have it.
+--    On the other hand, the only thing that can unify with `α` is precisely `α`. And then their types don't matter.
+
+--    So, bound-vars don't need to go in the typing environment.
+--    But then, how do I know that ƒ is applied to a correctly typed α?
+--    It would help to track them in the environment.
+
+--  How do I even check that a function is applied to a correctly typed arguments?
+--  When do I check that?
+--
+
+--  Checking applications should go like this—I must know the function.
+--  It is either a constructor or it has been mentioned in a formula when asserting something about that function.
+--  Like:  ∀ (m : ℕ) (n : ℕ) : ℕ(m + n)
+--  I need to collect these "declaratitions" and record that + : ℕ -> ℕ -> ℕ
+--  then I can type-check any term.
+
+
+--  It might also be worth considering to exclude quantified formulae from unification somehow.
+--  Instead of checking that two formulae are the same using unification on quantified formulae,
+--  I would use a special function that would not "misuse" unification for checking that those binders
+--  are corresponding to one another.
+--  There would still be unification happening on types and terms but not on bounds.
+--  Can I do that?

@@ -5,13 +5,13 @@ import Data.List.Extra ( intercalate )
 
 
 import Syntax.Formula ( Formula )
-import Syntax.Term ( Constant )
-import Syntax.Type ( Type(..) )
+import Syntax.Term ( Rigid )
+import Syntax.Type ( Type(..), Type'Scheme )
 
 
 data Assumption = Formula [(Maybe String, Formula)]
-                | Universal [(Constant, Type)]
-                | Existential (Maybe String, Formula) [(Constant, Type)]
+                | Universal [(Rigid, Type'Scheme)]
+                | Existential (Maybe String, Formula) [(Rigid, Type'Scheme)]
   deriving (Eq)
 
 

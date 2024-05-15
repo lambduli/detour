@@ -1,0 +1,76 @@
+module ℕ
+
+
+-- constants : (Zero : ℕ) , (Suc : ℕ -> ℕ)
+
+-- axiom nat-zero : ℕ(Zero)
+-- axiom nat-suc  : ∀ (n : ℕ) : ℕ(Suc(n))
+
+
+axiom sum-zero : ∀ (n : ℕ) : Sum(Zero , n , n)
+axiom sum-suc  : ∀ (n₁ : ℕ) (n₂ : ℕ) (n₃ : ℕ) : Sum( n₁ , n₂ , n₃ ) ==> Sum( Suc(n₁) , n₂ , Suc(n₃) )
+
+
+--  Now I need some axiom of induction.
+axiom ind-sum : --  The base case.
+                { ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( Zero , n₂ , n₃ ) } ==>
+                --  The inductive case.
+                [ ∀ (n : ℕ) : { ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( n , n₂ , n₃ ) } ==> 
+                              { ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( Suc(n) , n₂ , n₃ ) } ] ==>
+                { ∀ (n₁ : ℕ) (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( n₁ , n₂ , n₃ ) }
+
+
+syntax ℕ  = Zero    --  Zero : ℕ
+          | Suc(ℕ)  --  Suc  : ℕ -> ℕ
+
+
+-- syntax ℕ  = Zero | Suc(ℕ) | Pred(ℕ)
+
+
+
+theorem totality : ∀ (n₁ : ℕ) (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( n₁ , n₂ , n₃ )
+|
+|-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|
+| --  Let's prove the base case: { ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( Zero , n₂ , n₃ ) }
+|
+| uni-n2 :  | for all (n2 : ℕ)      -- the goal is:  ∃ (n₃ : ℕ) : Sum( Zero , n₂ , n₃ )
+|           |-------------------------------------------------------------------------------------------------------------------------------------------------------
+|           |
+|           | sum-z1 : Sum( Zero , n2 , n3 )  by rule ∀-elim on sum-zero
+|           | ∃ (n₃ : ℕ) : Sum( Zero , n2 , n₃ )  by rule ∃-intro on sum-z1
+|
+| base : { ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( Zero , n₂ , n₃ ) }  by rule ∀-intro on uni-n2
+|
+|
+| --  Let's prove the inductive case: [ ∀ (n : ℕ) : { ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( n , n₂ , n₃ ) } ==> { ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( Suc(n) , n₂ , n₃ ) } ]
+|
+| uni-n : | for all (n₁ : ℕ)
+|         |---------------------------------------------------------------------------------------------------------------------------------------------------------
+|         |
+|         | impl :  | p3 : ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( n₁ , n₂ , n₃ )   -- the goal is: { ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( Suc(n) , n₂ , n₃ ) }
+|         |         |---------------------------------------------------------------------------------------------------------------------------------------
+|         |         |
+|         |         | uni-n2b : | for all (n2b : ℕ)
+|         |         |           |---------------------------------------------------------------------------------------------------------------------------
+|         |         |           |
+|         |         |           | d1 : ∃ (n₃ : ℕ) : Sum( n₁ , n2b , n₃ )  by rule ∀-elim on p3
+|         |         |           |
+|         |         |           | exn3 :  | p5 : Sum( n₁ , n2b , n3b ) for some (n3b : ℕ)
+|         |         |           |         |---------------------------------------------------------------------------------------------------------
+|         |         |           |         |
+|         |         |           |         | sum-s : Sum( n₁ , n2b , n3b ) ==> Sum( Suc(n₁) , n2b , Suc(n3b) )  by rule ∀-elim on sum-suc
+|         |         |           |         | sum-n1+1 : Sum( Suc(n₁) , n2b , Suc(n3b) )  by rule ==>-elim on sum-s, p5
+|         |         |           |         | ∃ n₃ : Sum( Suc(n₁) , n2b , n₃ )  by rule ∃-intro on sum-n1+1
+|         |         |           |
+|         |         |           | ∃ (n₃ : ℕ) : Sum( Suc(n₁) , n2b , n₃ )  by rule ∃-elim on d1, exn3
+|         |         |
+|         |         | ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( Suc(n₁) , n₂ , n₃ )  by rule ∀-intro on uni-n2b
+|         |
+|         | { ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( n₁ , n₂ , n₃ ) } ==> { ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( Suc(n₁) , n₂ , n₃ ) }  by rule ==>-intro on impl
+|
+| step : [ ∀ (n : ℕ) : { ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( n , n₂ , n₃ ) } ==> { ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( Suc(n) , n₂ , n₃ ) } ]  by rule ∀-intro on uni-n
+|
+|
+| -- Let's use the induction now.
+| ∀ (n₁ : ℕ) : ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( n₁ , n₂ , n₃ )  by rule ==>-elim on ind-sum, base, step

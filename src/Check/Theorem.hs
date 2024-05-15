@@ -4,43 +4,34 @@ module Check.Theorem where
 import Data.Set qualified as Set
 import Data.Map.Strict qualified as Map
 import Data.List qualified as List
-import Data.Maybe ( mapMaybe )
 
--- import Control.Monad ( when, unless )
-import Control.Monad.Reader ( ReaderT, asks, local )
+import Control.Monad.Reader ( asks )
 import Control.Monad.State ( MonadState(get, put), gets )
-import Control.Monad.Except ( Except, runExcept, throwError )
-import Control.Monad.Extra
+import Control.Monad.Except ( throwError )
 
 import Check.Error ( Error(..) )
-import Check.Check
-import Check.Assertion
+import Check.Check ( fresh'constant, Check, fresh'type )
 import Check.Environment ( Environment(..) )
 import Check.State ( State(..), Level(..) )
-import Check.Substitute
-import Check.Vars
-import Check.Unify
-import Check.Rule
-import Check.Proof
+import Check.Vars ( Vars(free) )
+import Check.Unify ( Unify(unify) )
+import Check.Proof  ( check'all
+                    , collect'free'vars'in'formula
+                    , collect'free'vars'in'judgment )
 import Check.Solver ( solve )
 
 import Syntax.Formula ( Formula(..) )
-import Syntax.Formula qualified as F
-import Syntax.Term ( Term(..), Constant, Free )
+import Syntax.Term ( Free, Free(..) )
 import Syntax.Theorem ( Theorem(..) )
 import Syntax.Theorem qualified as T
 import Syntax.Judgment ( Judgment(..) )
 import Syntax.Judgment qualified as J
 import Syntax.Proof ( Proof(..) )
-import Syntax.Proof qualified as P
 import Syntax.Assumption ( Assumption(..) )
-import Syntax.Justification ( Justification(..), Rule(..) )
-import Syntax.Justification qualified as J
 import Syntax.Claim ( Claim(..) )
 import Syntax.Claim qualified as C
+import Syntax.Type ( Type'Scheme(..) )
 
-
-import Debug.Trace ( trace, traceM )
 import Data.List.Extra ( intercalate )
 
 
@@ -85,14 +76,13 @@ check'theorem T.Theorem { T.name
   d <- asks depth
 
   s <- get
-  const'depths <- gets const'depth'context
   free'depths <- gets free'depth'context
 
   let frees = concatMap collect'free'vars'in'judgment derivations ++ concatMap collect'free'vars'in'formula formulae
-  let consts = concatMap collect'consts'in'judgment derivations ++ concatMap collect'consts'in'formula formulae
 
   let free'patch = Map.fromList $! map (\ f -> (f, d)) frees
-  let const'patch = Map.fromList $! map (\ c -> (c, Unrestricted d)) consts
+  
+  typing'patch <- Map.fromList `fmap` mapM (\ (F s) -> do { t <- fresh'type ; return (s, Forall'T [] t) }) frees
 
   --  NOTE: I do this, so that all those free-vars in the theorem
   --        that look implicitly universal can not be unified with anything particular.
@@ -101,8 +91,8 @@ check'theorem T.Theorem { T.name
 
   mapM_ (\ f -> fresh'constant (Unrestricted d) >>= unify f) implicit'universals
 
-  put s { const'depth'context = const'depths `Map.union` const'patch
-        , free'depth'context = free'depths `Map.union` free'patch }
+  put s { free'depth'context = free'depths `Map.union` free'patch
+        , typing'ctx = typing'patch `Map.union` typing'ctx s }
 
   check'all derivations
 
@@ -131,10 +121,12 @@ check'theorem T.Theorem { T.name
     Just (_, c@(J.Claim _)) -> do
       check'conclusion c conclusion
 
+    Just (_, Alias _ _) -> do
+      throwError $! Err "The last judgment of a theorem needs to be a claim or a proof, not an alias."
+
     Nothing -> do
       throwError $! Err "Missing conclusion."
-  
-  -- print'constraints
+
   solve
 
 
@@ -157,12 +149,3 @@ check'conclusion c@(J.Claim (C.Claim { formula })) fm = do
 
 check'conclusion der fm = do
   throwError $! Err "Wrong conclusion."
-
-
-print'constraints :: Check ()
-print'constraints = do
-  constrs <- gets term'constraints
-
-  traceM (intercalate "\n" (map show constrs))
-
-  return ()

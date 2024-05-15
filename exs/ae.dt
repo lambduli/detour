@@ -1,0 +1,175 @@
+module AE
+
+
+terminals : +, zero
+
+
+syntax ℕ, n = zero
+            | suc ℕ
+
+
+--  Now, I want to define the + function
+function ·λ+· :
+
+  postulate ∀ (n₁ : ℕ) (n₂ : ℕ) : ℕ(n₁ λ+ n₂)
+  --  This is one way to write it.
+  --  On the other hand, the following notation is says exactly the same
+  λ+ : ∀ (n₁ : ℕ) -> (n₂ : ℕ) -> ℕ
+  --  Which one will should I pick?
+
+  --  I also give the corresponding function
+
+  λ+ = λ (n₁ : ℕ) (n₂ : ℕ) -> match n₁ with
+                                zero -> n₂
+                                suc n₃ -> suc (n₃ + n₂)
+
+
+syntax 𝔸𝔼, AE, ae = ( ℕ + ℕ )
+                  | ℕ
+
+
+--  Here, I have `+` in two different roles.
+--  As an uninterpreted function/constructor and as an interpreted function.
+--  This either means I would have to name them differently or be very careful when they are used.
+
+--  I think it might be possible to have them share the name.
+--  I think, I only intend to use the λ+ when I define operational semantics.
+--  This means, that λ+ never appears in a formula, rule or a theorem.
+
+--  On the other hand, when it appears in the operational semantics section,
+--  how do I know whether it is to compute the sum of two naturals or whether it is to construct
+--  an 𝔸𝔼 term?
+
+--  I could know from types, but that is not ideal, I think.
+--  So maybe they should not share the name after all.
+
+
+
+
+--  Now what?
+--  Now I can define operational semantics, judgments, and prove some theorems.
+
+
+judgment nat-sum : ℕ + ℕ = ℕ
+
+rule schema sum-z for any object (n : ℕ) :  |
+                                            |--------------- sum-z
+                                            | zero + n = n
+
+
+rule schema sum-s for all object (n₁ : ℕ), (n₂ : ℕ), (n₃ : ℕ) : | n₁ + n₂ = n₃
+                                                                |--------------------------- sum-s
+                                                                | (suc n₁) + n₂ = (suc n₃)
+
+
+
+judgment eq-nat: n = n
+
+rule schema for any object (n : ℕ) :  |
+                                      |-------- eq-z
+                                      | n = n
+
+
+
+
+judgment a-reduction: 𝔸𝔼  aᵣ  𝔸𝔼
+
+rule schema a-plus for all object (n₁ : ℕ), (n₂ : ℕ), (n₃ : ℕ) :  | n₁ + n₂ = n₃
+                                                                  |----------------------- a-plus
+                                                                  | ( n₁ + n₂ )  aᵣ  n₃
+
+
+
+
+judgment a-step: 𝔸𝔼 -->a 𝔸𝔼
+
+rule schema step-base for all object (AE : 𝔸𝔼), (AE' : ℕ) : | AE  aᵣ  AE'
+                                                            |------------- step-base
+                                                            | AE -->a AE'
+
+
+rule schema step-left-+ for all object (AE1 : 𝔸𝔼), (AE1' : ℕ) (AE2 : 𝔸𝔼) :
+| AE1 -->a AE1'
+|------------------------------------ step-left-+
+| ( AE1 + AE2 ) -->a ( AE1' + AE2 )
+
+
+rule schema step-rightt-+ for all object (AE1 : 𝔸𝔼), (AE2 : ℕ) (AE2' : 𝔸𝔼) :
+| AE2 -->a AE2'
+|------------------------------------ step-right-+
+| ( AE1 + AE2 ) -->a ( AE1 + AE2' )
+
+
+
+
+judgment a-multistep: 𝔸𝔼 -->>a 𝔸𝔼
+
+rule schema multi-base for all object (AE : 𝔸𝔼), (AE' : 𝔸𝔼) : | AE --> AE'
+                                                              |-------------- multi-base
+                                                              | AE -->>a AE'
+
+rule schema multi-refl for any object (AE : 𝔸𝔼) : |
+                                                  |-------------- multi-refl
+                                                  | AE -->>a AE
+
+
+rule schema multi-trans for all objects (AE1 : 𝔸𝔼), (AE2 : 𝔸𝔼), (AE3 : 𝔸𝔼) :  | AE1 -->>a AE2
+                                                                              | AE2 -->>a AE3
+                                                                              |---------------- multi-trans
+                                                                              | AE1 -->>a AE3
+
+
+
+
+judgment a-eq: 𝔸𝔼 = 𝔸𝔼
+
+rule schema eq-base for all objects (AE : 𝔸𝔼), (AE' : 𝔸𝔼) : | AE --> AE'
+                                                            |----------- eq-base
+                                                            | AE = AE'
+
+--  TODO: finish the rewrite!!!
+
+rule schema eq-refl for any object (AE : 𝔸𝔼) :  |
+                                                |---------- eq-refl
+                                                | AE = AE
+
+
+rule schema eq-trans for all objects (AE1 : 𝔸𝔼), (AE2 : 𝔸𝔼), (AE3 : 𝔸𝔼) : | AE1 = AE2
+                                                                          | AE2 = AE3
+                                                                          |------------- eq-trans
+                                                                          | AE1 = AE3
+
+
+rule schema eq-sym for all objects (AE1 : 𝔸𝔼), (AE2 : 𝔸𝔼) : | AE2 = AE1
+                                                            |------------ eq-sym
+                                                            | AE1 = AE2
+
+
+
+
+
+--  All those judgments above should be "runnable".
+--  The tool generates an interpreter and we can enter terms like the following into its prompt:
+--  > (suc zero) + zero -->a 𝔸𝔼
+--  here, 𝔸𝔼 is a variable that can participate in unification
+--  the interpreter should run the inference on the rules for -->a and produce all the possible results:
+
+--  > 𝔸𝔼 = suc zero --  if we take the `step-base`
+
+--  No other steps are possible.
+
+
+
+--  Now, there would be a few theorems.
+
+-- theorem test0: exists "(" + #Z #(S Z) ")"  a  #(S Z).
+--   d1: Z + S Z = S Z by rule sum-z
+--   proof by rule a-plus on d1
+-- end theorem
+-- 
+-- theorem test1:  forall imp: #n  a  #n
+--                 exists contradiction.
+-- 
+--   proof by contradiction on imp
+-- 
+-- end theorem

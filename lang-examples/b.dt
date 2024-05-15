@@ -1,0 +1,148 @@
+module b
+
+
+--  homomorphic types
+
+syntax ℕ  = zero
+          | suc ℕ
+
+
+--  equivalent to
+
+```agda
+data ℕ : Set where
+  zero : ℕ
+  suc : ∀ (n : ℕ) -> ℕ
+```
+
+-------------------------------------------------------------------------------
+
+--  can we have polymorphic second-order types?
+
+syntax maybe for any type τ = nothing
+                          | just τ
+
+
+--  I think this could do.
+--  We can't have "GADT" values.
+--  It's understood exactly as Haskell's simple data definitions.
+
+--  equivalent to
+
+```haskell
+data Maybe t  = Nothing
+              | Just t
+```
+
+--  and to
+
+```agda
+data maybe : Set -> Set where
+  nothing : ∀ (τ : Type) -> maybe τ
+  just : ∀ (τ : Type) (a : τ) -> maybe τ
+```
+
+
+--  Could we have something like GADT syntax?
+--  What would be some use-case?
+--  Well, something could turn up.
+
+syntax literal for any type τ where
+  lit-ℕ : ℕ -> literal ℕ
+  lit-𝔹 : 𝔹 -> literal 𝔹
+
+--  I guess this works.
+--  But once we get to the level where we have the syntax where we write types
+--  we will have to deal with a lot of stuff.
+--  Types of constructors like ∀ (τ : type) (a : τ) -> a -> a -> foo τ
+--  or this type as an argument to a constructor and so on.
+
+
+--  What about types parametrized with parametric types?
+
+syntax foo for any type (τ : ?) ...
+
+--  Here, the ? can be something like:  type
+--                                      type -> type
+--                                      (type -> type) -> type
+--                                      ℕ -> type
+--                                      ∀ (τ : type) -> (τ -> τ) -> τ -> τ
+--                                      ∀ (n : ℕ) -> (n -> type) -> type
+--                                      ∀ (τ : type) (o : τ) -> (τ -> type) -> type
+--  These are "kinds" of types.
+
+--  For our syntax-types, we only allow parameters that are types over values, types and over
+--  anything we allow.
+--  Isn't that all types?
+
+-------------------------------------------------------------------------------
+
+--  So what about judgments now?
+
+--  Simple, first-order judgments.
+--  Those are types parametrized with values.
+
+judgment nat-sum = ℕ + ℕ = ℕ
+
+rule schema sum-z for any object (n : ℕ) :  |--------------- sum-z
+                                            | zero + n = n
+
+
+rule schema sum-s for all objects (m : ℕ) (n : ℕ) (o : ℕ) : | m + n = o
+                                                            |-------------------- sum-s
+                                                            | suc m + n + suc o
+
+
+--  this is equivalent to
+
+```agda
+data _+_=_ : ℕ -> ℕ -> ℕ -> Set where
+  sum-z : ∀ (n : ℕ) -> zero + n = n
+  sum-s : ∀ (m : ℕ) (n : ℕ) (o : ℕ) -> m + n = o -> suc m + n = suc o
+```
+
+
+--  So, what about judgments over values and types as well?
+
+judgment has-type for any type τ
+              and for any object (o : τ) =  o : τ
+
+rule schema typed for any type τ
+              and for any object (o : τ) :  |--------- typed
+                                            | o : τ
+
+--  I don't even know what this would be useful for.
+--  But maybe there are better example.
+
+--  Maybe the rules would look different but the judgment is still over a type
+--  and over an object. Like this.
+
+rule nat-lit-typed :  |---------------- nat-lit-typed
+                      | lit-nat ℕ : ℕ
+
+
+--  This makes sense. Still, the judgment needs to be parametrized like this.
+
+--  This is equivalent to
+
+```agda
+data _:_ (τ : Set) (o : τ) : Set where
+  typed : ∀ (τ : Set) (o : τ) -> o : τ
+
+  nat-lit-typed : ∀ (n : ℕ) -> (lit-nat n) : Ν
+```
+
+
+--  What about judgments over judgments?
+--  I don't know in general, but I think I can have propositions over propositions.
+
+
+judgment conjunction for all propositions A, B = A ∧ B
+
+rule schema and-intro for all propositions A, B : | A
+                                                  | B
+                                                  |-------- and-intro
+                                                  | A ∧ B
+
+--  The important restriction is that those propositions are really : Proposition
+--  and never something that — when applied to a thing — gives a Proposition.

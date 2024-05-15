@@ -12,8 +12,7 @@ import {-# SOURCE #-} Check.Assertion ( Assertion )
 data Environment = Env{ lem                 :: Bool
                       , theorems            :: Map.Map String Theorem
                       , depth               :: Int
-                      , assert'scope        :: Map.Map String Assertion
-                      , typing'ctx          :: Map.Map String Type }
+                      , assert'scope        :: Map.Map String Assertion }
   deriving (Show, Eq)
 
 
@@ -21,5 +20,4 @@ init'env :: Bool -> Environment
 init'env lem = Env{ lem           = lem
                   , theorems      = Map.empty
                   , assert'scope  = Map.empty
-                  , depth         = 0
-                  , typing'ctx    = Map.empty }
+                  , depth         = 0 }

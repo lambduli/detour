@@ -1,0 +1,20 @@
+module uni
+
+
+
+
+theorem wrong-uni : ∀ a : P(a) ⊢ ⊤
+| p1 : ∀ a : P(a)
+|-------------------
+|
+| u : | for all α
+|     |-----------------
+|     |
+|     | P(α)  by rule ∀-elim on p1
+|
+| fail : ∀ a : P(α)  by rule ∀-intro on u
+|
+| ⊤  by rule ⊤-intro
+
+
+

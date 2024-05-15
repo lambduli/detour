@@ -1,0 +1,100 @@
+module Even
+
+
+--  constants : Zero, Suc
+
+syntax ℕ  = Zero
+          | Suc(ℕ)
+
+
+judgment sum = ℕ + ℕ = ℕ
+
+rule schema sum-zero for all objects (n : ℕ) :
+|
+|-------------------------------------- sum-zero
+| Sum(Zero, n, n)
+
+
+rule schema sum-suc for all objects (m : ℕ), (n : ℕ), (o : ℕ) :
+| Sum(m, n, o)
+|-------------------------------------- sum-suc
+| Sum(Suc(m), n, Suc(o))
+
+
+
+judgment even = Even ℕ
+
+rule even-z :
+|
+|-------------- even-z
+| Even Zero
+
+
+rule schema even-s for any object (n : ℕ) :
+| Even n
+|-------------------- even-s
+| Even (Suc (Suc n))
+
+
+-- in SASyLF it would be
+--  forall Even n1
+--  forall Even n2
+--  exists n₁ + n₂ = n₃ ∧ Even(n₃)
+--  which is kinda confusing as to how exactly is it quantified
+
+theorem even-sum  : ∀ (n₁ : ℕ)
+                  : ∀ (n₂ : ℕ)
+                  : Even n₁ ==> Even n₂
+                  ==> ∃ (n₃ : ℕ) : n₁ + n₂ = n₃ ∧ Even(n₃)
+
+--  or alternatively
+
+theorem even-sum for all objects (n₁ : ℕ) (n₂ : ℕ) : Even n₁ , Even n₂ ⊢ ∃ (n₃ : ℕ) : n₁ + n₂ = n₃ ∧ Even(n₃)
+for any (n1 : ℕ)
+  for any (n2 : ℕ)
+    for even-n1 : Even n1
+        even-n2 : Even n2
+
+      ∃ (n₃ : ℕ) : n₁ + n2 = n₃ ∧ Even(n₃)  by induction on even-n1
+        case rule
+          
+          ---------------- even-z
+          _ : Even Zero
+
+          ->  z+n2=n2 : Zero + n2 = n2  by rule sum-z
+              even-n3 : even n3  by d2
+              Zero + n2 = n3 ∧ even n3  by rule ∧-intro on z+n2=n2 , even-n3
+
+        case rule
+          even-n1' : even n1'
+          ------------------------ even-s
+          _ : even Suc (Suc n1')
+
+          ->  
+              sum∧even : n1' + n2 = n3' ∧ even n3'  by induction hypothesis on even-n1', d2
+              n1'+n2=n3' : n1' + n2 = n3'  by rule ∧-elim on sum∧even
+              even-n3' : even n3'  by rule ∧-elim on sum∧even
+
+              sum2 : Suc n1' + n2 = Suc n3'  by rule sum-s on n1'+n2=n3'
+              sum3 : Suc (Suc n1') + n2 = Suc (Suc n3')  by rule sum-s on sum2
+
+              even-n3 : even Suc (Suc n3')  by rule even-s on even-n3'
+              p : Suc (Suc n1') + n2 = Suc (Suc n3') ∧ even Suc (Suc n3')  by rule ∧-intro on sum3, even-n3
+              ∃ n₃ : Suc (Suc n1') + n2 = n₃ ∧ even n₃  by rule ∃-intro on p
+
+
+
+
+suc (suc n1') + n2 = suc n3'  where n3 = suc n3'
+
+-> scitani
+suc n1' + n2 = suc n3''  where n3' = suc n3''
+
+-> scitani
+n1' + n2 = n3''
+
+--> induction : Even(n3'')
+
+-> even-s na n3''
+
+-- hotovo

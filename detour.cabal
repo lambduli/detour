@@ -75,6 +75,7 @@ library
         Check.Substitute
         Check.Substitution
         Check.Theorem
+        Check.Types
         Check.Unify
         Check.Vars
 
@@ -83,14 +84,17 @@ library
         Parser.Token
 
         Syntax.Assumption
+        Syntax.Case
         Syntax.Claim
         Syntax.Definition
         Syntax.Formula
+        Syntax.Jud
         Syntax.Judgment
         Syntax.Justification
         Syntax.Module
         Syntax.Proof
         Syntax.Relation
+        Syntax.Syntax
         Syntax.Term
         Syntax.Theorem
         Syntax.Type

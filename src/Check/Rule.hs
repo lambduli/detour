@@ -1,14 +1,14 @@
 module Check.Rule where
 
 -- import Data.Set qualified as Set
--- import Data.Map.Strict qualified as Map
+import Data.Map.Strict qualified as Map
 import Data.List qualified as List
--- import Data.Maybe ( mapMaybe )
+import Data.Maybe ( isJust )
 
 -- import Control.Monad ( when, unless )
-import Control.Monad.Reader ( asks )
+import Control.Monad.Reader ( ask, asks, local )
 import Control.Monad.State ( MonadState(get, put), gets )
-import Control.Monad.Except ( throwError, withError, catchError )
+import Control.Monad.Except ( throwError, catchError )
 import Control.Monad.Extra ( unless )
 
 import Check.Error ( Error(..) )
@@ -21,12 +21,13 @@ import Check.Substitute ( Substitute(apply) )
 import Check.Unify ( Unify(unify) )
 import Check.Substitution
 import Check.Solver ( solve, get'subst )
+import Check.Types ( instantiate'scheme, instantiate'scheme'at )
 
 import Syntax.Formula ( Formula(..) )
 import Syntax.Formula qualified as F
 import Syntax.Relation ( Relation(..), Prop'Var(..) )
-import Syntax.Term ( Term(..), Constant(..), Free(..), Bound(..) )
-import Syntax.Type ( Type )
+import Syntax.Term ( Term(..), Var(..), Constant(..), Free(..), Bound(..), Rigid(..) )
+import Syntax.Type ( Type, Type'Scheme(..) )
 -- import Syntax.Theorem ( Theorem(..) )
 -- import Syntax.Theorem qualified as T
 -- import Syntax.Judgment ( Judgment(..) )
@@ -35,17 +36,10 @@ import Syntax.Type ( Type )
 -- import Syntax.Proof qualified as P
 import Syntax.Assumption ( Assumption(..) )
 import Syntax.Justification ( Justification(..), Rule(..) )
+import Syntax.Jud qualified as J
 -- import Syntax.Justification qualified as J
 -- import Syntax.Claim ( Claim(..) )
 -- import Syntax.Claim qualified as C
-
--- import Debug.Trace ( traceM )
-
-
-withError' m e = withError (const e) m
-
-because :: String -> Check a -> Check a
-because msg m = withError (\ (Err msg') -> (Err (msg ++ "\nand " ++ msg'))) m
 
 
 check'rule :: Rule -> [Assertion] -> Formula -> Check ()
@@ -58,7 +52,7 @@ check'rule :: Rule -> [Assertion] -> Formula -> Check ()
 check'rule Impl'Intro [assertion] impl = check'impl'intro assertion impl
 
 check'rule Impl'Intro _ _ = do
-  throwError $! Err "Wrong number or shapes of arguments to the rule ==>-intro."
+  throwError $! Err "I saw wrong number or shapes of arguments to the rule ==>-intro."
 
 {-  impl : _A ==> _B => _C  by ...
 
@@ -76,7 +70,7 @@ check'rule Impl'Elim (assert'impl : assert'prems) conclusion = do
   because ("I was trying to check the rule ==>-elim to justify `" ++ show conclusion ++ "'\n  the implication to eliminate `" ++ show impl ++ "'\n  and the proved premises " ++ List.intercalate ", " (map (\ p -> "`" ++ show p ++ "'") prems)) (impl `unify` meta'impl)
 
 check'rule Impl'Elim _ _ = do
-  throwError $! Err "Wrong number or shapes of arguments to the rule ==>-elim."
+  throwError $! Err "I saw wrong number or shapes of arguments to the rule ==>-elim."
 
 {-  a : _A  by ...
 
@@ -90,7 +84,7 @@ check'rule Conj'Intro [assert'a, assert'b] conj = do
   because ("I was trying to check the rule ∧-intro") (conj `unify` (a `And` b))
 
 check'rule Conj'Intro _ _ = do
-  throwError $! Err "Wrong number or shapes of arguments to the rule ∧-intro."
+  throwError $! Err "I saw wrong number or shapes of arguments to the rule ∧-intro."
 
 {-  a∧b : _A ∧ _B  by ...
 
@@ -113,7 +107,7 @@ check'rule Conj'Elim [assertion] formula = do
                       (const (formula `unify` b)))
 
 check'rule Conj'Elim _ _ = do
-  throwError $! Err "Wrong number or shapes of arguments to the rule ∧-elim."
+  throwError $! Err "I saw wrong number or shapes of arguments to the rule ∧-elim."
 
 {-  a : _A  by ...
 
@@ -136,7 +130,7 @@ check'rule Disj'Intro [assertion] disj = do
                       (const (f `unify` b)))
 
 check'rule Disj'Intro _ _ = do
-  throwError $! Err "Wrong number or shapes of arguments to the rule ∨-intro."
+  throwError $! Err "I saw wrong number or shapes of arguments to the rule ∨-intro."
 
 {-  a∨b : _A ∨ _B  by ...
     
@@ -160,7 +154,7 @@ check'rule Disj'Elim  [ assertion
   because ("I was trying to check the rule ∨-elim and it seems that the formula is not the same as the goals of those sub-proofs.") (formula `unify` goal'a)
 
 check'rule Disj'Elim  _ _ = do
-  throwError $! Err "Wrong number or shapes of arguments to the rule ∨-elim."
+  throwError $! Err "I saw wrong number or shapes of arguments to the rule ∨-elim."
 
 {-  a : _A  by ...
 
@@ -180,7 +174,7 @@ check'rule Neg'Elim [assert'a, assert'a'] F.False = do
                       (const (a `unify` (Not a'))))
 
 check'rule Neg'Elim _ _ = do
-  throwError $! Err "Wrong number or shapes of arguments to the rule ¬-elim."
+  throwError $! Err "I saw wrong number or shapes of arguments to the rule ¬-elim."
 
 {-  a=>b : _A ==> _B  by ...
     b=>a : _B ==> _A  by ...
@@ -207,7 +201,7 @@ check'rule Equiv'Intro [assert'ab, assert'ba] formula = do
                       (const (formula `unify` (b `Eq` a))))
 
 check'rule Equiv'Intro _ _ = do
-  throwError $! Err "Wrong number or shapes of arguments to the rule <==>-intro."
+  throwError $! Err "I saw wrong number or shapes of arguments to the rule <==>-intro."
 
 {-  formula : _A <==> _B  by rule <==>-intro on a=>b, b=>a
     --  or
@@ -232,14 +226,14 @@ check'rule Equiv'Elim [assertion] impl = do
                       (const (impl `unify` (b `Impl` a))))
 
 check'rule Equiv'Elim _ _ = do
-  throwError $! Err "Wrong number or shapes of arguments to the rule <==>-elim."
+  throwError $! Err "I saw wrong number or shapes of arguments to the rule <==>-elim."
 
 {-  true : ⊤  by rule ⊤-intro     -}
 check'rule True'Intro [] F.True = do
   return ()
 
 check'rule True'Intro _ F.True = do
-  throwError $! Err "Wrong number or shapes of arguments to the rule ⊤-intro."
+  throwError $! Err "I saw wrong number or shapes of arguments to the rule ⊤-intro."
 
 {-  false : | prem : ¬φ
             |-------------------
@@ -260,7 +254,7 @@ check'rule Proof'By'Contradiction [Derived (Formula [(_, Not a)]) last] formula 
             (a `unify` formula)
 
 check'rule Proof'By'Contradiction _ _ = do
-  throwError $! Err "Wrong number or shapes of arguments to the rule `contradiction'."
+  throwError $! Err "I saw wrong number or shapes of arguments to the rule `contradiction'."
 
 {-  false : ⊥  by ...
 
@@ -271,7 +265,7 @@ check'rule Contra'Elim [assertion] _ = do
   because ("I was trying to check the rule ⊥-elim.") (false `unify` F.False)
 
 check'rule Contra'Elim _ _ = do
-  throwError $! Err "Wrong number or shapes of arguments to the rule ⊥-elim."
+  throwError $! Err "I saw wrong number or shapes of arguments to the rule ⊥-elim."
 
 {-  α : | for all (α : ℕ) , β
         |----------------------
@@ -324,14 +318,12 @@ check'rule Forall'Intro [Derived (Universal bindings) formula] universal = do
   -- -- constrs <- gets term'constraints
   -- -- s <- get
   -- -- put s{ term'constraints = apply subst constrs }
-  
-  -- -- traceM ("Checking the ∀-intro\nunifying universal=" ++ show universal ++ "  with  universal'=" ++ show universal')
 
   -- because ("I was trying to check the rule ∀-intro\n\n  the claimed formula `" ++ show universal ++ "'\n\n  the justification produced `" ++ show universal' ++ "'\n\n  because it started from `" ++ show formula ++ "'\n\n  and applied this substitution `" ++ show subst ++ "'.") (universal `unify` universal')
 
-  --  TODO: Decide what needs to be done about the type-checking!
   body <- instantiate universal bindings
-  because ("I was trying to check the rule ∀-intro |\n  body " ++ show body ++ "\n\n  formula " ++ show formula ++ "\n\n  universal " ++ show universal) (body `unify` formula)
+  because ("I was trying to check the rule ∀-intro |\n  body " ++ show body ++ "\n\n  formula " ++ show formula ++ "\n\n  universal " ++ show universal)
+          (body `unify` formula)
 
   {-
     THIS IS INCORRECT:
@@ -346,7 +338,7 @@ check'rule Forall'Intro [Derived (Universal bindings) formula] universal = do
   -}
 
 check'rule Forall'Intro _ _ = do
-  throwError $! Err "Wrong number or shapes of arguments to the rule ∀-intro."
+  throwError $! Err "I saw wrong number or shapes of arguments to the rule ∀-intro."
 
 {-  universal : ∀ α ∀ β P(α, β, x)  by ...
 
@@ -382,7 +374,7 @@ check'rule Forall'Elim [assertion] formula = do
   universal `unify'with'instance` formula
 
 check'rule Forall'Elim _ _ = do
-  throwError $! Err "Wrong number or shapes of arguments to the rule ∀-elim."
+  throwError $! Err "I saw wrong number or shapes of arguments to the rule ∀-elim."
 
 {-  formula : P(α, β, x)  by ...
 
@@ -400,7 +392,7 @@ check'rule Exists'Introduction [assertion] existential = do
           (existential `unify'with'instance` formula)
 
 check'rule Exists'Introduction _ _ = do
-  throwError $! Err "Wrong number or shapes of arguments to the rule ∃-intro."
+  throwError $! Err "I saw wrong number or shapes of arguments to the rule ∃-intro."
 
 {-  existential : ∃ x P(x, dᶜ, x)  by ...
 
@@ -442,48 +434,82 @@ check'rule Exists'Elimination [assertion, Derived (Existential (_, premise) bind
   -}
 
 check'rule Exists'Elimination _ _ = do
-  throwError $! Err "Wrong number or shapes of arguments to the rule ∃-elim."
+  throwError $! Err "I saw wrong number or shapes of arguments to the rule ∃-elim."
 
 check'rule Repetition [assertion] formula = do
   fm <- asserts'formula assertion
   because ("I was trying to check the rule repetition.") (formula `unify` fm)
 
 check'rule Repetition _ _ = do
-  throwError $! Err "Wrong number or shapes of arguments to the rule `repetition'."
+  throwError $! Err "I saw wrong number or shapes of arguments to the rule `repetition'."
 
---  TODO: I need to implement support for this.
 check'rule (Custom name) assertions formula = do
-  throwError $! Err "Custom rules are not implemented yet."
+  J.Rule _ typings premises conclusion <- find'rule name
+
+  triples <- mapM (\ (n, t) -> do { v <- fresh'free ; return (n, v, t) }) typings
+
+  let sub = concatMap (\ (old, new, _) -> F old ==> Var (Free new)) triples
+
+  let premises' = apply sub premises
+  let conclusion' = apply sub conclusion
+
+  let t'patch = Map.fromList $! map (\ (_, F n, t) -> (n, Forall'T [] t)) triples
+  s <- get
+  put s{ typing'ctx = t'patch `Map.union` typing'ctx s}
+
+  assertions `unify` premises'
+  formula `unify` conclusion'
 
 check'rule rule assertions formula = do
   throwError $! Err "This is a wrong justification."
 
 
-instantiate :: Formula -> [(Constant, Type)] -> Check Formula
+find'rule :: String -> Check J.Rule
+find'rule name = do
+  juds <- gets judgments
+  case List.find (\ (J.Jud _ _ rules) -> isJust $! List.find (\ (J.Rule n _ _ _) -> name == n) rules) juds of
+    Nothing -> do
+      throwError $! Err ("I don't know the rule named `" ++ name ++ "'.")
+
+    Just (J.Jud _ _ rules) -> do
+      case List.find (\ (J.Rule n _ _ _) -> name == n) rules of
+        Nothing -> error "internal error: this should never happen"
+
+        Just rule -> do
+          return rule
+
+
+instantiate :: Formula -> [(Rigid, Type'Scheme)] -> Check Formula
 instantiate e@(Exists _ _) bs = instantiate'exist'to e bs
 instantiate u@(Forall _ _) bs = instantiate'universal'to u bs
 instantiate f _ = throwError $! Err ("I was trying to instantiate the formula `" ++ show f ++ "' but it isn't a quantified formula.")
 
 
-instantiate'exist'to :: Formula -> [(Constant, Type)] -> Check Formula
+instantiate'exist'to :: Formula -> [(Rigid, Type'Scheme)] -> Check Formula
 instantiate'exist'to fm [] = do
   return fm
 
-instantiate'exist'to (F.Exists (n, t) body) ((c, t') : cs) = do
+instantiate'exist'to (F.Exists (n, ts) body) ((r, ts') : cs) = do
+  tc <- fresh'type'const
+  t <- ts `instantiate'scheme'at` [tc]
+  t' <- ts' `instantiate'scheme'at` [tc]  --  this is not strictly necessary, the constant would unify with a fresh variable from the ts' too
   t `unify` t'
-  instantiate'exist'to (apply (B n ==> App c []) body) cs --  TODO: refactor with some new pattern synonym like `Const c`
+  instantiate'exist'to (apply (B n ==> Var (Rigid r)) body) cs
 
 instantiate'exist'to fm _ = do
   throwError $! Err ("Instantiation error. The `" ++ show fm ++ "' is not an existentially quantified formula and there are some instantiation-arguments (terms) left.")
 
 
-instantiate'universal'to :: Formula -> [(Constant, Type)] -> Check Formula
+instantiate'universal'to :: Formula -> [(Rigid, Type'Scheme)] -> Check Formula
 instantiate'universal'to fm [] = do
   return fm
 
-instantiate'universal'to (F.Forall (v, t) body) ((c, t') : cs) = do
+instantiate'universal'to (F.Forall (v, ts) body) ((r, ts') : cs) = do
+  tc <- fresh'type'const
+  t <- ts `instantiate'scheme'at` [tc]
+  t' <- ts' `instantiate'scheme'at` [tc]  --  this is not strictly necessary, the constant would unify with a fresh variable from the ts' too
   t `unify` t'
-  instantiate'universal'to (apply (B v ==> App c []) body) cs --  TODO: refactor with some new pattern synonym like `Const c`
+  instantiate'universal'to (apply (B v ==> Var (Rigid r)) body) cs
 
 instantiate'universal'to fm _ = do
   throwError $! Err ("Instantiation error. The `" ++ show fm ++ "' is not an existentially quantified formula and there are some instantiation-arguments (terms) left.")
@@ -516,14 +542,20 @@ unify'with'instance existential@(Exists _ _) instantiation = do
   --        I should record those in the typing environment somehow—maybe I can do `local` and run the unification within it,
   --        so that all the object-level free-vars are known when type-checking during the unification.
   --        The things that they unify with (from the RHS), must have fitting types.
-  sub <- mapM (\ s -> do { b <- fresh'free ; return $! Bound'2'Term (B s) (Free b) }) (map fst prefix)
+  
+  bs <- mapM (\ (s, t) -> do { b <- fresh'free ; return $! ((B s), b, t) }) prefix
+  let sub = map (\ (b, f, _) -> Bound'2'Term b (Var (Free f))) bs
+  let t'ctx'patch = Map.fromList $! map (\ (_, F s, t) -> (s, t)) bs
 
   let formula = apply sub $! foldr Exists body'l (drop pref'len binds'l)
+
+  s <- get
+  put s{ typing'ctx = t'ctx'patch `Map.union` typing'ctx s }
 
   because ("I was trying to unify \n  `" ++ show existential ++ "'\nwith its supposed instance \n  `" ++ show instantiation ++ "'\nI instantiated the existential to\n  `" ++ show formula ++ "'.")
           (formula `unify` instantiation)
 
-  where decompose :: Formula -> Check ([(String, Type)], Formula)
+  where decompose :: Formula -> Check ([(String, Type'Scheme)], Formula)
         decompose (Exists x fm) = do
           (binders, body) <- decompose fm
           return (x : binders, body)
@@ -550,8 +582,11 @@ unify'with'instance universal@(Forall _ _) instantiation = do
   --        I should record those in the typing environment somehow—maybe I can do `local` and run the unification within it,
   --        so that all the object-level free-vars are known when type-checking during the unification.
   --        The things that they unify with (from the RHS), must have fitting types.
-  sub <- mapM (\ s -> do { b <- fresh'free ; return $! Bound'2'Term (B s) (Free b) }) (map fst prefix)
 
+  bs <- mapM (\ (s, ts) -> do { b <- fresh'free ; return $! ((B s), b, ts) }) prefix
+  let sub = map (\ (b, f, _) -> Bound'2'Term b (Var (Free f))) bs
+  let t'ctx'patch = Map.fromList $! map (\ (_, F s, t) -> (s, t)) bs
+  -- sub <- mapM (\ s -> do { b <- fresh'free ; return $! Bound'2'Term (B s) (Free b) }) (map fst prefix)
   let formula = apply sub $! foldr Forall body'l (drop pref'len binds'l)
 
   --  REVISE THE QUESTIONS BELOW. DOES IT STILL WORK?
@@ -563,9 +598,13 @@ unify'with'instance universal@(Forall _ _) instantiation = do
   --  it would bind a x = y
   --  basically exploiting ∀ x P(x, x, x)
 
-  because ("I was trying to unify \n  `" ++ show formula ++ "' () with its supposed instance \n  `" ++ show instantiation ++ "'.") (formula `unify` instantiation)
+  s <- get
+  put s{ typing'ctx = t'ctx'patch `Map.union` typing'ctx s }
 
-  where decompose :: Formula -> Check ([(String, Type)], Formula)
+  because ("I was trying to unify \n  `" ++ show formula ++ "' () with its supposed instance \n  `" ++ show instantiation ++ "'.")
+          (formula `unify` instantiation)
+
+  where decompose :: Formula -> Check ([(String, Type'Scheme)], Formula)
         decompose (Forall x fm) = do
           (binders, body) <- decompose fm
           return (x : binders, body)

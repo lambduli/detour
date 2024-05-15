@@ -1,0 +1,10 @@
+module wrong-ex
+
+
+
+
+theorem wrong : Cool(xᶜ) ⊢ ∃ x : Cool(ƒ(x))
+| p1 : Cool(xᶜ)
+|-------------------------------------------
+|
+| ∃ x : Cool(ƒ(x))  by rule ∃-intro on p1
