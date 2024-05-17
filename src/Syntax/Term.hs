@@ -55,7 +55,7 @@ instance Show Bound where
 
 
 instance Show Free where
-  show (F n) = n
+  show (F n) = n ++ "·"
 
 
 instance Show Rigid where
@@ -63,7 +63,7 @@ instance Show Rigid where
 
 
 instance Show Var where
-  show (Free f) = show f
+  show (Free f) = show f ++ "?"
   show (Rigid r) = show r ++ "®"
 
 

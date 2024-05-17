@@ -30,6 +30,24 @@ rule false-test : |
 
 
 
+judgment id = Id(ℕ, ℕ)
+
+rule schema id for any object (n : ℕ) :
+|
+|----------- id
+| Id(n, n)
+
+
+
+
+judgment only-positive = ℙositive(ℕ)
+
+rule schema pos for any object (n : ℕ) :
+|
+|-------------- pos
+| ℙos(Suc(n))
+
+
 judgment nat-test = NT(ℕ)
 
 rule schema s-test for all objects (n : ℕ) :
@@ -93,67 +111,72 @@ b : Id(m, m)  by rule ∀-elim on id
 ∃ (n : ℕ) : Id(n, n)  by rule ∃-intro on b
 
 
---  this fails, but it kinda seems like it should be ok
---  TODO: figure it out
---  I think it could work. The tool would, however, have to do more work.
---  This is something like subsumption checking, I think.
---  And I have decided against it. Because it makes things more complicated for me.
---  Maybe in some future version.
--- theorem custom-rules-2 : ∃ n : Sum( Zero , Suc(Zero) , Suc(Zero) )
--- a : Sum( Zero, k, l )  by rule sum-zero
--- ∃ n : Sum( Zero , n , n )  by rule ∃-intro on a
-
-
 theorem custom-rules-3 : Sum( Zero , Suc(Zero) , Suc(Zero) )
 Sum( Zero, Suc(Zero) , n )  by rule sum-zero
 
 
--- theorem totality : ∀ ℕ₁ ℕ₂ : ∃ ℕ₃ : Sum( ℕ₁ , ℕ₂ , ℕ₃ )
--- |
--- |--------------------------------------------------------------------------------------------------
--- |
--- | --  Let's prove the base case: { ∀ ℕ₂ : ∃ ℕ₃ : Sum( Zero , ℕ₂ , ℕ₃ ) }
--- |
--- | uni-n2 :  | for all (ℕ2 : ℕ)
--- |           |--------------------------------------------------------------------------------------
--- |           |
--- |           | sz : Sum( Zero , n2 , n3 )  by rule sum-zero
--- |           | ∃ ℕ₃ : Sum( Zero , n2 , ℕ₃ )  by rule ∃-intro on sz
--- |
--- | base : { ∀ ℕ₂ : ∃ ℕ₃ : Sum( Zero , ℕ₂ , ℕ₃ ) }  by rule ∀-intro on uni-n2
--- |
--- |
--- |
--- | --  Let's prove the inductive case: [ ∀ ℕ : { ∀ ℕ₂ : ∃ ℕ₃ : Sum( ℕ , ℕ₂ , ℕ₃ ) } ==> { ∀ ℕ₂ : ∃ ℕ₃ : Sum( Suc(ℕ) , ℕ₂ , ℕ₃ ) } ]
--- |
--- | uni-n : | for all (n₁ : ℕ)
--- |         |----------------------------------------------------------------------------------------
--- |         |
--- |         | impl :  | p3 : ∀ ℕ₂ : ∃ ℕ₃ : Sum( ℕ , ℕ₂ , ℕ₃ )
--- |         |         |---------------------------------------------------------------------------------------------------------------------------------------
--- |         |         |
--- |         |         | uni-n2b : | for all (ℕ2 : ℕ)
--- |         |         |           |---------------------------------------------------------------------------------------------------------------------------
--- |         |         |           |  
--- |         |         |           | d1 : ∃ ℕ₃ : Sum( n₁ , ℕ2 , ℕ₃ )  by rule ∀-elim on p3
--- |         |         |           |
--- |         |         |           | exn3 :  | p5 : Sum( n₁ , ℕ2 , ℕ3 ) for some (ℕ3 : ℕ)
--- |         |         |           |         |---------------------------------------------------------------------------------------------------------
--- |         |         |           |         |
--- |         |         |           |         | sum-n1+1 : Sum( Suc(n₁) , ℕ2 , Suc(ℕ3) )  by rule sum-suc on ℕ, ℕ2, ℕ3
--- |         |         |           |         | ∃ ℕ₃ : Sum( Suc(ℕ) , ℕ2 , ℕ₃ )  by rule ∃-intro on sum-n1+1
--- |         |         |           |
--- |         |         |           | ∃ ℕ₃ : Sum( Suc(ℕ) , ℕ2 , ℕ₃ )  by rule ∃-elim on d1, exn3
--- |         |         |
--- |         |         | ∀ ℕ₂ : ∃ n₃ : ℕ(n₃) ∧ Sum( Suc(ℕ) , ℕ₂ , n₃ )  by rule ∀-intro on uni-n2b
--- |         |
--- |         | { ∀ ℕ₂ : ∃ ℕ₃ : Sum( ℕ , ℕ₂ , ℕ₃ ) } ==> { ∀ ℕ₂ : ∃ ℕ₃ : Sum( Suc(ℕ) , ℕ₂ , ℕ₃ ) }  by rule ==>-intro on impl
--- |
--- | step : [ ∀ ℕ : { ∀ ℕ₂ : ∃ ℕ₃ : Sum( ℕ , ℕ₂ , ℕ₃ ) } ==> { ∀ ℕ₂ : ∃ ℕ₃ : Sum( Suc(ℕ) , ℕ₂ , ℕ₃ ) } ]  by rule ∀-intro on uni-n
--- |
--- |
--- | -- Let's use the induction now.
--- | ∀ ℕ₁ ℕ₂ : ∃ ℕ₃ : Sum( ℕ₁ , ℕ₂ , ℕ₃ )  by induction on base, step
+
+--  TODO: FIX FIX FIX THIS THIS THIS ONE ONE ONE !!! !!! !!!
+-- theorem case-test-x : ∀ (n : ℕ) : ℙos(Suc(n))
+-- u : | for any (N : ℕ)
+--     |-------------------------------------
+--     | 
+--     | _ : Id(Suc(N), 1)  by rule id
+--     |
+--     | --  1 should be unified with Suc(N) now
+--     |
+--     | ℙos(1)  by case analysis on 1 :
+--     |               case Suc(m) ->  |
+--     |                               |----------------------
+--     |                               | ℙos(1)  by rule pos
+--     |
+-- 
+-- ∀ (n : ℕ) : ℙos(Suc(n))  by rule ∀-intro on u
+
+
+
+
+
+theorem total : ∀ (n₁ : ℕ) (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( n₁ , n₂ , n₃ )
+∀ (n₁ : ℕ) (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( n₁ , n₂ , n₃ )  by induction :
+
+  case Zero -> 
+    |
+    |--------------------------------------------------------------------------------------------
+    | --  let's prove the base case
+    | --  ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( Zero , n₂ , n₃ )
+    |
+    | uni-n2 :  | for all (n2 : ℕ)
+    |           |--------------------------------------------------------------------------------
+    |           |
+    |           | sz : Sum( Zero , n2 , n3 )  by rule sum-zero
+    |           | ∃ (n₃ : ℕ) : Sum( Zero , n2 , n₃ )  by rule ∃-intro on sz
+    |
+    | result : ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( Zero , n₂ , n₃ )  by rule ∀-intro on uni-n2
+
+
+  case Suc(m) ->  
+
+    | induction-hypothesis : ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( m , n₂ , n₃ )
+    |--------------------------------------------------------------------------------------------
+    | --  let's prove the inductive case
+    | --  { ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( m , n₂ , n₃ ) }
+    | --    ==> { ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( Suc(m) , n₂ , n₃ ) }
+    |
+    | uni-n2b : | for all (N2 : ℕ)
+    |           |--------------------------------------------------------------------------------
+    |           |  
+    |           | d1 : ∃ (n₃ : ℕ) : Sum( m , N2 , n₃ )  by rule ∀-elim on induction-hypothesis
+    |           |
+    |           | exn3 :  | p5 : Sum( m , N2 , n3 ) for some (n3 : ℕ)
+    |           |         |----------------------------------------------------------------------
+    |           |         |
+    |           |         | sum-m+1 : Sum( Suc(m) , N2 , Suc(n3) )  by rule sum-suc on p5
+    |           |         | ∃ (n₃ : ℕ) : Sum( Suc(m) , N2 , n₃ )  by rule ∃-intro on sum-m+1
+    |           |
+    |           | ∃ (n₃ : ℕ) : Sum( Suc(m) , N2 , n₃ )  by rule ∃-elim on d1, exn3
+    |
+    | ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( Suc(m) , n₂ , n₃ )  by rule ∀-intro on uni-n2b
 
 
 
@@ -264,6 +287,43 @@ theorem prove-weird : ∀ (x : Empty) : Sum(Zero, Zero, Suc(Zero))
 -- | A  by case analysis on on p1
 
 
+-- --  now, the case analysis on judgments
+-- therem case-judgments-1 : ∃ (a : ℕ) (b : ℕ) : Sum(a, b, b) ⊢ ?
+-- | p1 : ∃ (a : ℕ) (b : ℕ) : Sum(a, b, b)
+-- |------------------------------------------------
+-- |
+-- | e : | p2 : Sum(A, B, B)  for some (A : ℕ) (B : ℕ)
+-- |     |------------------------------------------
+-- |     |
+-- |     | ?  by case analysis on judgment p2 :
+-- |     |
+-- |     |       case rule |
+-- |     |                 |------------------ sum-zero
+-- |     |                 | Sum(Zero, B, B)
+-- |     |
+-- |     |             ->  |
+-- |     |                 |----------------------------
+-- |     |                 |
+-- |     |                 |
+-- |     |                 |
+-- |     |                 |
+-- |     |                 | ?  by ?
+-- |     |
+-- |     |
+-- |     |       case rule | p3 : Sum(A', Suc(B'), B')
+-- |     |                 |--------------------------------- sum-suc
+-- |     |                 | Sum(Suc(A'), Suc(B'), Suc(B'))
+-- |     |
+-- |     |             ->  |
+-- |     |                 |--------------------------
+-- |     |                 |
+-- |     |                 | ?  by case analysis on judgment p3 :  --  p3 is not matched by any of the two constructors
+-- |
+-- | ?  by rule ∃-elim on p1, e
+
+
+
+
 
 -- theorem prove-false : ∀ (n : ℕ) : ∃ (m : ℕ) : Sum( Suc(Zero) , m , n ) ⊢ ⊥
 -- --  there's a counter-example: n = Zero -> Sum( Suc(Zero) , ? , Zero )
@@ -271,16 +331,11 @@ theorem prove-weird : ∀ (x : Empty) : Sum(Zero, Zero, Suc(Zero))
 -- | 1 : ∀ (n : ℕ) : ∃ (m : ℕ) : Sum( Suc(Zero) , m , n )
 -- |--------------------------------------------------------------------
 -- |
--- | 2 : ∃ (m : ℕ) : Sum( Suc(Zero) , m , Zero )  by rule ∀-intro on 1
+-- | 2 : ∃ (m : ℕ) : Sum( Suc(Zero) , m , Zero )  by rule ∀-elim on 1
 -- |
 -- | 3 : | 4 : Sum( Suc(Zero) , m1 , Zero )  for some (m1 : ℕ)
 -- |     |--------------------------------------------------------------
 -- |     |
--- |     | ⊥  by case analysis on 4
+-- |     | ⊥  by case analysis on judgment 4 :
 -- |
 -- | ⊥  by rule ∃-elim on 2, 3
-
-
---  Can I do case analysis on an existential variable?
---  We don't know what it is. If we do case analysis and prove a thing
---  I guess it's ok. No matter what it actually is, we prove the same thing.

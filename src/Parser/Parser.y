@@ -551,7 +551,7 @@ Name        ::  { Maybe String }
 
 Just        ::  { Justification }
             :   'by' 'rule' RuleKind OnIdents     { Rule{ J.kind = $3, on = $4 } }
-            |   'by' 'induction' 'on' Term        { Induction { on'1 = $4 } }
+            |   'by' 'induction' ':' Cases        { Induction { proofs = $4 } }
             |   'by' 'unproved'                   { Unproved }
             |   'by' 'axiom' IDENT                { Rule{ J.kind = Repetition, on = [$3] } }
             |   'by' 'theorem' IDENT OnIdents     { J.Theorem { J.name = $3, on = $4 } }
