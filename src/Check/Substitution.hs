@@ -60,7 +60,7 @@ instance Bind Bound Term where
 
   remove :: Bound -> Substitution -> Substitution
   remove bound subst = filter (\ case Bound'2'Term b _ -> bound /= b
-                                      _ -> False) subst
+                                      _ -> True) subst
 
 
 instance Bind Rigid Term where
@@ -75,7 +75,7 @@ instance Bind Rigid Term where
 
   remove :: Rigid -> Substitution -> Substitution
   remove f subst = filter (\ case Rigid'2'Term free _ -> free /= f
-                                  _ -> False) subst
+                                  _ -> True) subst
 
 
 instance Bind Prop'Var Formula where
@@ -90,7 +90,7 @@ instance Bind Prop'Var Formula where
 
   remove :: Prop'Var -> Substitution -> Substitution
   remove prop subst = filter (\ case  Prop'2'Formula p _ -> prop /= p
-                                      _ -> False) subst
+                                      _ -> True) subst
 
 
 instance Bind String Type where
@@ -105,4 +105,4 @@ instance Bind String Type where
 
   remove :: String -> Substitution -> Substitution
   remove prop subst = filter (\ case  Meta'2'Type p _ -> prop /= p
-                                      _ -> False) subst
+                                      _ -> True) subst

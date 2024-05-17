@@ -25,11 +25,12 @@ import Check.Rule
 import Check.Constraint
 import Check.Solver ( Unifier(mgu), get'subst )
 import Check.Substitution qualified as S
+import Check.Types ( instantiate'scheme )
 
 import Syntax.Formula ( Formula(Atom) )
 import Syntax.Relation ( Relation(Meta'Rel), Prop'Var(..), Relation(..) )
 import Syntax.Formula qualified as F
-import Syntax.Term ( Term(..), Constant(..), Var(..), Free(..), Rigid(..) )
+import Syntax.Term ( Term(..), Constant(..), Var(..), Free(..), Rigid(..), Bound(..) )
 import Syntax.Theorem ( Theorem(..) )
 import Syntax.Theorem qualified as T
 import Syntax.Judgment ( Judgment(..) )
@@ -219,7 +220,43 @@ justifies (J.Theorem { J.name, on = identifiers }) fm = do
 justifies Unproved _ = do
   return ()
 
-justifies (Induction { on'1 }) fm = do
+justifies (Induction { proofs }) fm = do
+  --  TODO:
+  --  Proof by induction is like a proof by case analysis.
+  --  But every case that has a part of it with the same type as the thing being matched on
+  --  gets an induction hypothesis for that one part.
+  --  The goal of each case is to prove the original statement instantiated with the specific case-term.
+
+  (t, f, fm') <- case fm of
+        F.Forall (b, ts) fm -> do
+          t <- instantiate'scheme ts
+          f <- fresh'free
+          let fm' = apply [Bound'2'Term (B b) (Var (Free f))] fm
+
+          return (t, f, fm')
+        _ -> do
+          throwError $! Err ("I can't prove the formula `" ++ show fm ++ "' by induction because it's not in the correct shape.")
+
+  n <-  case t of
+          Type'Const n -> return n
+
+          _ -> do
+            throwError $! Err ("I can't prove the formula `" ++ show fm ++ "' by induction, its first binder has a confusing type `" ++ show t ++ "'.")
+
+
+  syns <- gets syntax
+  syn <- case lookup n syns of
+            Nothing -> do
+              throwError $! Err ("I can't prove the formula `" ++ show fm ++ "' by induction, I don't know the type of its first binder type `" ++ show t ++ "'.\nPerhaps you forgot to write a corresponding syntax section?")
+
+            Just syn -> return syn
+
+  let (Syntax constructors) = syn
+
+
+  --  For induction, we have to handle all the cases so that we "deserve" all the induction hypotheses.
+  check'induction'cases proofs t constructors (f, fm')
+
   --  TODO: I need to figure out what (inductively defined) property
   --        is this reasoning about.
   --        Maybe like this:
@@ -249,8 +286,6 @@ justifies (Induction { on'1 }) fm = do
   --        We should handle all the cases.
   --        They should preferably be in the correct order, but maybe I can deal
   --        with them being in any order.
-
-  throwError $! Err "Proof by induction is not implemented yet."
 
 justifies (Case'Analysis{ on'1, proofs }) fm = do
   --  TODO: I need to check that all the constructors of that type are covered by the case analysis.
@@ -313,12 +348,117 @@ justifies (Substitution{ on', using }) fm = do
   --  fm    and `on` can unify under the equivalence
 
 
+check'induction'cases :: [Case] -> Type -> [Constructor] -> (Free, Formula) -> Check ()
+check'induction'cases cases typ to'handle (f, goal) = do
+
+  --  For each one of those, find all those cases that match them.
+  --  If there are multiple -> fail
+  --  If there is none -> fail
+
+  traceM ("..........     I need to handle these constructors for the induction: " ++ show to'handle)
+
+  handle'cases cases to'handle
+
+  where handle'cases :: [Case] -> [Constructor] -> Check ()
+        handle'cases [] [] = return ()
+        handle'cases (Case p _ : _) [] = do
+          throwError $! Err ("I found a redundant case in the case analysis.\nDrop the case for `" ++ show p ++ "'.")
+
+        handle'cases cases (constr : constrs) = do
+          --  find all the cases that match that constructor
+          --  if there're more or less than one -> fail
+          --  if there's exactly one -> continue
+          (matching, not'matching) <- partitionM (`matches` constr) cases
+
+          case matching of
+            [] -> do
+              throwError $! Err ("there's a case missing in the case analysis.\nI can't find a case for `" ++ show constr ++ "'.")
+
+            (_ : _ : _) -> do
+              throwError $! Err ("there are too many cases matching the constructor `" ++ show constr ++ "'.")
+
+            [cas] -> do
+              check'induction'case (f, goal) typ constr cas
+              handle'cases not'matching constrs
+
+
+check'induction'case :: (Free, Formula) -> Type -> Constructor -> Case -> Check ()
+check'induction'case (f, goal) typ (Constructor _ types) (Case (c, rs) proof) = do
+  --  I need to see if this case is for a base-case
+  --  or for the inductive case.
+  --  If the constructor contains another term of the same type, it is an inductive case.
+  --  And we will make available a corresponding induction hypothesis.
+  --  
+
+  let pat'term = App c (map (\ r -> Var (Rigid r)) rs)
+
+  --  if I were to unify the subject with the pat'term
+  --  I would get a substitution
+  --  I'd apply that substitution to the body of the case
+  --  I also need to apply that substitution to the goal
+  --  
+
+  -- subst <- get'subst
+  -- s' <- apply subst pat'term `match'mgu` apply subst subject
+  -- let s = subst `compose` s'
+
+  -- traceM ("............... the substitution = " ++ show s)
+  -- traceM ("I need to check the proof = " ++ show (apply s proof))
+  -- traceM ("the old proof was = " ++ show proof)
+  -- traceM ("...___... the term under rigid b = " ++ show (S.lookup (R "b") s) )
+  -- let what = C.Claim{ C.name = Just "claim-name"
+  --                   , formula = (Atom (Rel "whatever" [(Var (Rigid (R "b")))]))
+  --                   , justification = Unproved }
+  -- let what2 = Proof{ P.name = Just "proof-name"
+  --                 , assumption = Formula []
+  --                 , derivations = [J.Claim what] }
+  -- traceM ("--···--  what happens = " ++ show (apply s what2))
+
+  --  TODO: Check that the proof has assumption (Formula [...])
+
+  check'proof proof
+
+  -- traceM "proof checked"
+
+  let goal' = apply [Free'2'Term f pat'term] goal
+
+  traceM ("So the original goal is = " ++ show goal)
+  traceM ("the new goal is = " ++ show goal')
+  traceM ("the substitution is = " ++ show [Free'2'Term f pat'term])
+  traceM ("the substitution applied to something is = " ++ show (apply [Free'2'Term f pat'term] (F.Exists ("aaa", Forall'T [] (Type'Const "𝔼")) (Atom (Rel "something" [(Var (Free (F "_0")))])))  ))
+
+  let Proof{ assumption, derivations } = proof
+
+  case assumption of
+    Formula [] -> return ()
+    Formula ind'hypotheses -> do
+      let typed'rigids = filter (\ (_, t) -> t == typ) (zip rs types)
+      let hypotheses = map (\ (r, _) -> apply [Free'2'Term f (Var (Rigid r))] goal) typed'rigids
+      let ind'hypotheses' = map snd ind'hypotheses
+
+      ind'hypotheses' `unify` hypotheses
+
+    _ -> do
+      throwError $! Err "the induction cases are not supposed to have quantified assumptions."
+    
+
+  case List.unsnoc derivations of
+    Just (_, J.Claim (C.Claim { formula })) -> do
+      traceM ("so I am here, finally\nunifying a formula " ++ show formula ++ "\nwith goal " ++ show goal' ++ "\nthe original goal was " ++ show goal ++ "\nthe substitution is " ++ show [Free'2'Term f pat'term])
+      formula `unify` goal'
+
+    Just (_, _) -> do
+      throwError $! Err ("I found a wrong-shaped conclusion in the body of the case.")
+
+    Nothing -> do
+      throwError $! Err "Missing conclusion."
+
+
 check'cases :: [Case] -> [Constructor] -> Formula -> Term -> Check ()
 check'cases cases constructors formula subject = do
 
   --  First filter the constructors.
   --  Find all those that are "unifiable" with the subject
-
   to'handle <- filterM (\ constr -> con'to'pat constr >>= (`unifiable` subject)) constructors
 
   --  For each one of those, find all those cases that match them.
