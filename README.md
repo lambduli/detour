@@ -22,7 +22,7 @@ axiom sum-suc  : ∀ n₁ n₂ n₃ : ℕ(n₁) ==>
 ```
 
 #### Induction
-The tool does not understand induction. You have to define your own induction-axioms:
+The tool does not understand induction. You have to define your own induction axioms:
 ```
 axiom ind-sum : --  The base case.
                 { ∀ n₂ : ℕ(n₂) ==> ∃ n₃ : ℕ(n₃) ∧ Sum( Zero , n₂ , n₃ ) } ==>
