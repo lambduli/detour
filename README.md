@@ -4,7 +4,7 @@ A toy proof-checker for first-order predicate logic natural deduction with Fitch
 
 It is still in the stage of prototyping.
 
-It supports exactly first-order predicate logic with no custom rules.
+It supports exactly first-order predicate logic with custom definitions for terms and propositions.
 
 ## Syntax
 
@@ -21,15 +21,75 @@ axiom sum-suc  : ∀ n₁ n₂ n₃ : ℕ(n₁) ==>
                               Sum( n₁ , n₂ , n₃ ) ==> Sum( Suc(n₁) , n₂ , Suc(n₃) )
 ```
 
-#### Induction
-The tool does not understand induction. You have to define your own induction axioms:
+
+### Inductive Definitions
+You can also define your relations more concisely using the `syntax` and `judgment` declarations.
+Here's an example of the above in the new syntax:
 ```
-axiom ind-sum : --  The base case.
-                { ∀ n₂ : ℕ(n₂) ==> ∃ n₃ : ℕ(n₃) ∧ Sum( Zero , n₂ , n₃ ) } ==>
-                --  The inductive case.
-                [ ∀ n : ℕ(n) ==> { ∀ n₂ : ℕ(n₂) ==> ∃ n₃ : ℕ(n₃) ∧ Sum( n , n₂ , n₃ ) } ==> { ∀ n₂ : ℕ(n₂) ==> ∃ n₃ : ℕ(n₃) ∧ Sum( Suc(n) , n₂ , n₃ ) } ] ==>
-                { ∀ n₁ : ℕ(n₁) ==> ∀ n₂ : ℕ(n₂) ==> ∃ n₃ : ℕ(n₃) ∧ Sum( n₁ , n₂ , n₃ ) }
+syntax ℕ  = Zero
+          | Suc(ℕ)
+
+judgment sum = Sum(ℕ, ℕ, ℕ)
+
+rule schema sum-zero for all objects (n : ℕ) :
+|
+|-------------------------------------- sum-zero
+| Sum(Zero, n, n)
+
+
+rule schema sum-suc for all objects (m : ℕ), (n : ℕ), (o : ℕ) :
+| Sum(m, n, o)
+|-------------------------------------- sum-suc
+| Sum(Suc(m), n, Suc(o))
 ```
+
+
+### Induction and Case Analysis
+If you declare your relations (using `syntax` and `judgment`) as shown above, the tool supports proofs by induction and case analysis.
+Here's an example of a theorem *total* for addition:
+```
+theorem total : ∀ (n₁ : ℕ) (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( n₁ , n₂ , n₃ )
+∀ (n₁ : ℕ) (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( n₁ , n₂ , n₃ )  by induction :
+
+  case Zero -> 
+    |
+    |--------------------------------------------------------------------------------------------
+    | --  let's prove the base case
+    | --  ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( Zero , n₂ , n₃ )
+    |
+    | uni-n2 :  | for all (n2 : ℕ)
+    |           |--------------------------------------------------------------------------------
+    |           |
+    |           | sz : Sum( Zero , n2 , n3 )  by rule sum-zero
+    |           | ∃ (n₃ : ℕ) : Sum( Zero , n2 , n₃ )  by rule ∃-intro on sz
+    |
+    | result : ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( Zero , n₂ , n₃ )  by rule ∀-intro on uni-n2
+
+
+  case Suc(m) ->  
+
+    | induction-hypothesis : ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( m , n₂ , n₃ )
+    |--------------------------------------------------------------------------------------------
+    | --  let's prove the inductive case
+    | --  { ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( m , n₂ , n₃ ) }
+    | --    ==> { ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( Suc(m) , n₂ , n₃ ) }
+    |
+    | uni-n2b : | for all (N2 : ℕ)
+    |           |--------------------------------------------------------------------------------
+    |           |  
+    |           | d1 : ∃ (n₃ : ℕ) : Sum( m , N2 , n₃ )  by rule ∀-elim on induction-hypothesis
+    |           |
+    |           | exn3 :  | p5 : Sum( m , N2 , n3 ) for some (n3 : ℕ)
+    |           |         |----------------------------------------------------------------------
+    |           |         |
+    |           |         | sum-m+1 : Sum( Suc(m) , N2 , Suc(n3) )  by rule sum-suc on p5
+    |           |         | ∃ (n₃ : ℕ) : Sum( Suc(m) , N2 , n₃ )  by rule ∃-intro on sum-m+1
+    |           |
+    |           | ∃ (n₃ : ℕ) : Sum( Suc(m) , N2 , n₃ )  by rule ∃-elim on d1, exn3
+    |
+    | ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( Suc(m) , n₂ , n₃ )  by rule ∀-intro on uni-n2b
+```
+
 
 ### Theorems
 A theorem is a statement followed by its proof.
@@ -107,7 +167,7 @@ See the [`./examples`](./examples) directory for a few examples.
   - [x] parsing syntax definitions
   - [x] case analysis on objects
     - [x] exhaustivity/specificity checking
-  - [ ] induction on objects
+  - [x] induction on objects
 
 - [ ] Custom Rules
   - [x] parsing judgment definitions
