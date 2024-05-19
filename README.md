@@ -54,34 +54,23 @@ theorem total : ∀ (n₁ : ℕ) (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( n₁ , n
   case Zero -> 
     |
     |--------------------------------------------------------------------------------------------
-    | --  let's prove the base case
-    | --  ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( Zero , n₂ , n₃ )
-    |
     | uni-n2 :  | for all (n2 : ℕ)
     |           |--------------------------------------------------------------------------------
-    |           |
     |           | sz : Sum( Zero , n2 , n3 )  by rule sum-zero
     |           | ∃ (n₃ : ℕ) : Sum( Zero , n2 , n₃ )  by rule ∃-intro on sz
     |
-    | result : ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( Zero , n₂ , n₃ )  by rule ∀-intro on uni-n2
+    | ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( Zero , n₂ , n₃ )  by rule ∀-intro on uni-n2
 
 
   case Suc(m) ->  
 
     | induction-hypothesis : ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( m , n₂ , n₃ )
     |--------------------------------------------------------------------------------------------
-    | --  let's prove the inductive case
-    | --  { ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( m , n₂ , n₃ ) }
-    | --    ==> { ∀ (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( Suc(m) , n₂ , n₃ ) }
-    |
     | uni-n2b : | for all (N2 : ℕ)
     |           |--------------------------------------------------------------------------------
-    |           |  
     |           | d1 : ∃ (n₃ : ℕ) : Sum( m , N2 , n₃ )  by rule ∀-elim on induction-hypothesis
-    |           |
     |           | exn3 :  | p5 : Sum( m , N2 , n3 ) for some (n3 : ℕ)
     |           |         |----------------------------------------------------------------------
-    |           |         |
     |           |         | sum-m+1 : Sum( Suc(m) , N2 , Suc(n3) )  by rule sum-suc on p5
     |           |         | ∃ (n₃ : ℕ) : Sum( Suc(m) , N2 , n₃ )  by rule ∃-intro on sum-m+1
     |           |
