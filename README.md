@@ -83,7 +83,7 @@ theorem total : ∀ (n₁ : ℕ) (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( n₁ , n
 ### Theorems
 A theorem is a statement followed by its proof.
 ```
-theorem totality : ∀ n₁ : ℕ(n₁) ==> ∀ n₂ : ℕ(n₂) ==> ∃ n₃ : ℕ(n₃) ∧ Sum( n₁ , n₂ , n₃ )
+theorem total : ∀ (n₁ : ℕ) (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( n₁ , n₂ , n₃ )
 ```
 
 
