@@ -4,7 +4,7 @@ module Check.Module where
 import Data.Map.Strict qualified as Map
 
 import Control.Monad.State ( MonadState(put) )
-import Control.Monad.Except ( throwError )
+import Control.Monad.Except ( throwError, tryError )
 import Control.Monad.Reader ( local )
 import Control.Monad ( unless )
 
@@ -29,12 +29,17 @@ import Syntax.Theorem qualified as T
 
 
 --  TODO:   Later it should return the substitution.
-check'module :: Module -> Check ()
+--  TODO:   Make it try each theorem. If one of them fails, do not fail the whole module.
+--          Instead, make it go to the other one.
+--          This function then returns a list of theorems marked with a bool whether they succeeded or failed.
+--          Something like [(String, Maybe Err)] could be enough.
+--          This way main can print the info to the terminal.
+check'module :: Module -> Check [(String, Maybe Error)]
 check'module Module { M.name, M.constants, M.aliases, M.axioms, M.syntax, M.judgments, M.theorems } = do
   let patch = Map.fromList $! map (\ (n, fm) -> (n, Axiom fm)) axioms
 
   local (\ e -> e{ assert'scope = (assert'scope e) `Map.union` patch })
-        (mapM_ (\ t -> clean'state >> because ("when I was trying to check the theorem `" ++ T.name t ++ "'") (check'theorem t)) theorems)
+        (mapM try'theorem theorems)
 
   where clean'state :: Check ()
         clean'state = do
@@ -52,3 +57,13 @@ check'module Module { M.name, M.constants, M.aliases, M.axioms, M.syntax, M.judg
                                       , S.syntax = syntax }
 
           put new'state
+
+        try'theorem :: T.Theorem -> Check (String, Maybe Error)
+        try'theorem th = do
+          let name = T.name th
+          clean'state
+          -- because ("when I was trying to check the theorem `" ++ T.name th ++ "'")
+          res <- tryError  (check'theorem th)
+          case res of
+            Left err -> return (name, Just err)
+            Right () -> return (name, Nothing)

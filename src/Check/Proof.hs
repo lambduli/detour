@@ -355,7 +355,7 @@ check'induction'cases cases typ to'handle (f, goal) = do
   --  If there are multiple -> fail
   --  If there is none -> fail
 
-  traceM ("..........     I need to handle these constructors for the induction: " ++ show to'handle)
+  -- traceM ("..........     I need to handle these constructors for the induction: " ++ show to'handle)
 
   handle'cases cases to'handle
 
@@ -422,10 +422,10 @@ check'induction'case (f, goal) typ (Constructor _ types) (Case (c, rs) proof) = 
 
   let goal' = apply [Free'2'Term f pat'term] goal
 
-  traceM ("So the original goal is = " ++ show goal)
-  traceM ("the new goal is = " ++ show goal')
-  traceM ("the substitution is = " ++ show [Free'2'Term f pat'term])
-  traceM ("the substitution applied to something is = " ++ show (apply [Free'2'Term f pat'term] (F.Exists ("aaa", Forall'T [] (Type'Const "𝔼")) (Atom (Rel "something" [(Var (Free (F "_0")))])))  ))
+  -- traceM ("So the original goal is = " ++ show goal)
+  -- traceM ("the new goal is = " ++ show goal')
+  -- traceM ("the substitution is = " ++ show [Free'2'Term f pat'term])
+  -- traceM ("the substitution applied to something is = " ++ show (apply [Free'2'Term f pat'term] (F.Exists ("aaa", Forall'T [] (Type'Const "𝔼")) (Atom (Rel "something" [(Var (Free (F "_0")))])))  ))
 
   let Proof{ assumption, derivations } = proof
 
@@ -444,7 +444,7 @@ check'induction'case (f, goal) typ (Constructor _ types) (Case (c, rs) proof) = 
 
   case List.unsnoc derivations of
     Just (_, J.Claim (C.Claim { formula })) -> do
-      traceM ("so I am here, finally\nunifying a formula " ++ show formula ++ "\nwith goal " ++ show goal' ++ "\nthe original goal was " ++ show goal ++ "\nthe substitution is " ++ show [Free'2'Term f pat'term])
+      -- traceM ("so I am here, finally\nunifying a formula " ++ show formula ++ "\nwith goal " ++ show goal' ++ "\nthe original goal was " ++ show goal ++ "\nthe substitution is " ++ show [Free'2'Term f pat'term])
       formula `unify` goal'
 
     Just (_, _) -> do
@@ -465,7 +465,7 @@ check'cases cases constructors formula subject = do
   --  If there are multiple -> fail
   --  If there is none -> fail
 
-  traceM ("..........     I need to handle these constructors: " ++ show to'handle)
+  -- traceM ("..........     I need to handle these constructors: " ++ show to'handle)
 
   handle'cases cases to'handle
 
@@ -519,7 +519,7 @@ matches (Case (con, rigids) _) constr = do
   put s { typing'ctx = typing'ctx s `Map.union` Map.fromList mappings
         , rigid'depth'context = rigid'depth'context s `Map.union` Map.fromList d'maps }
 
-  traceM ("`~~~~~~~~~~~~~ I need to unify " ++ show term ++ "\nwith " ++ show pat'term)
+  -- traceM ("`~~~~~~~~~~~~~ I need to unify " ++ show term ++ "\nwith " ++ show pat'term)
 
   ifM (term `unifiable` pat'term)
       do { pat'term `unify` term ; return True }
@@ -540,7 +540,7 @@ con'to'pat (Constructor c'name types) = do
   put s { typing'ctx = typing'ctx s `Map.union` t'patch
         , free'depth'context = free'depth'context s `Map.union` d'patch }
 
-  traceM ("--------- I have recorded these mappings in the typing context: " ++ show t'patch)
+  -- traceM ("--------- I have recorded these mappings in the typing context: " ++ show t'patch)
 
   let terms = map (\ (n, _) -> Var (Free (F n))) fresh'and'typed
 
@@ -551,9 +551,9 @@ unifiable :: Term -> Term -> Check Bool
 unifiable left right = do
   subst <- get'subst
   tc <- gets typing'ctx
-  traceM ("unifiable and the typing context is = " ++ show tc)
-  b <- do { _ <- apply subst left `match'mgu` apply subst right ; return True } `catchError` (\ err -> do { traceM ("+++++++ the reason why it fails is " ++ show err) ; (return False) })
-  traceM ("_____________\nunifiable\nis " ++ show (apply subst left) ++ "\nunifiable with " ++ show (apply subst right) ++ "\nconclusion= " ++ show b)
+  -- traceM ("unifiable and the typing context is = " ++ show tc)
+  b <- do { _ <- apply subst left `match'mgu` apply subst right ; return True } `catchError` (const (return False))
+  -- traceM ("_____________\nunifiable\nis " ++ show (apply subst left) ++ "\nunifiable with " ++ show (apply subst right) ++ "\nconclusion= " ++ show b)
   return b
 
 
@@ -573,20 +573,20 @@ check'case goal subject constructor (Case (c, rs) proof) = do
   s' <- apply subst pat'term `match'mgu` apply subst subject
   let s = subst `compose` s'
 
-  traceM ("............... the substitution = " ++ show s)
-  traceM ("I need to check the proof = " ++ show (apply s proof))
-  traceM ("the old proof was = " ++ show proof)
-  traceM ("...___... the term under rigid b = " ++ show (S.lookup (R "b") s) )
-  let what = C.Claim{ C.name = Just "claim-name"
-                    , formula = (Atom (Rel "whatever" [(Var (Rigid (R "b")))]))
-                    , justification = Unproved }
-  let what2 = Proof{ P.name = Just "proof-name"
-                  , assumption = Formula []
-                  , derivations = [J.Claim what] }
-  traceM ("--···--  what happens = " ++ show (apply s what2))
+  -- traceM ("............... the substitution = " ++ show s)
+  -- traceM ("I need to check the proof = " ++ show (apply s proof))
+  -- traceM ("the old proof was = " ++ show proof)
+  -- traceM ("...___... the term under rigid b = " ++ show (S.lookup (R "b") s) )
+  -- let what = C.Claim{ C.name = Just "claim-name"
+  --                   , formula = (Atom (Rel "whatever" [(Var (Rigid (R "b")))]))
+  --                   , justification = Unproved }
+  -- let what2 = Proof{ P.name = Just "proof-name"
+  --                 , assumption = Formula []
+  --                 , derivations = [J.Claim what] }
+  -- traceM ("--···--  what happens = " ++ show (apply s what2))
   check'proof (apply s proof)
 
-  traceM "proof checked"
+  -- traceM "proof checked"
 
   let goal' = apply s goal
 
@@ -600,7 +600,7 @@ check'case goal subject constructor (Case (c, rs) proof) = do
 
   case List.unsnoc derivations of
     Just (_, J.Claim (C.Claim { formula })) -> do
-      traceM ("so I am here, finally\nunifying a formula " ++ show formula ++ "\nwith goal " ++ show goal')
+      -- traceM ("so I am here, finally\nunifying a formula " ++ show formula ++ "\nwith goal " ++ show goal')
       formula `unify` goal'
 
     Just (_, _) -> do

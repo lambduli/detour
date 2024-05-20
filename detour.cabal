@@ -168,4 +168,6 @@ executable detour
     -- Base language which the package is written in.
     default-language: Haskell2010
 
-    default-extensions: ImportQualifiedPost
+    default-extensions:
+        ImportQualifiedPost,
+        LambdaCase
