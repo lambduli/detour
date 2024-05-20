@@ -12,6 +12,7 @@ import System.Environment ( getArgs )
 import System.IO ( openFile, IOMode(ReadMode), hGetContents )
 
 import Data.List.Extra qualified as List
+import Data.List qualified as List
 import Data.Map.Strict qualified as Map
 
 import Parser.Parser ( parse'module, lex )
@@ -46,32 +47,43 @@ check'file lem file'path = do
   file'handle <- openFile (List.trim file'path) ReadMode
   file'content <- hGetContents file'handle
 
-  case lex file'content of
-    Left (msg, toks) -> do
-      putStrLn msg
-      putStrLn "I parsed these tokens:"
-      mapM_ (putStrLn . show) toks
+  -- case lex file'content of
+  --   Left (msg, toks) -> do
+  --     putStrLn msg
+  --     putStrLn "I parsed these tokens:"
+  --     mapM_ (putStrLn . show) toks
 
-    Right toks -> do
-      putStrLn "I parsed these tokens:"
-      mapM_ (putStrLn . show) toks
+  --   Right toks -> do
+  --     putStrLn "I parsed these tokens:"
+  --     mapM_ (putStrLn . show) toks
 
-  putStrLn "----------------------------------------"
+  -- putStrLn "----------------------------------------"
 
   case parse'module file'content of
     Left err -> do
       putStrLn ("error at " ++ file'path ++ ":" ++ err)
     Right mod -> do
-      putStrLn "Module parsed"
-      print mod
-      putStrLn "\n\nModule printed"
+      -- putStrLn "Module parsed"
+      -- print mod
+      -- putStrLn "\n\nModule printed"
+      putStrLn ("Checking module `" ++ M.name mod ++ "'\n")
 
       case runExcept $ runStateT (runReaderT (check'module mod) (init'env lem)) empty'state of
         Left err -> do
           putStrLn ("❌ " ++ show err)
 
-        Right ((), state) -> do
-          putStrLn ("✅ module checked successfully")
+        Right (results, state) -> do
+          mapM_ (\case  (name, Just err) -> do { putStrLn ("❌ theorem `" ++ name ++ "' failed because\n" ++ show err) }
+                        (name, Nothing)  -> do {putStrLn ("✅ theorem `" ++ name ++ "' checked successfully") } ) results
+          
+          let success = List.all (\case (_, Nothing) -> True
+                                        _            -> False) results
+          if success
+          then do
+            putStrLn ""
+            putStrLn ("✅ The whole module checked successfully.")
+          else do
+            return ()
 
   return ()
 

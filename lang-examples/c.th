@@ -1,5 +1,3 @@
-module c
-
 --  What about syntax of the proofs?
 --  I want to make it vertically not so heavy.
 --  I am thinking Haskell's style indentation-sensitivity.
@@ -9,7 +7,7 @@ module c
 
 
 ```
-module ℕ
+module ℕat
 
 
 syntax ℕ  = Zero
@@ -18,17 +16,15 @@ syntax ℕ  = Zero
 
 judgment sum-nat = ℕ + ℕ = ℕ
 
-rule schema sum-zero for all objects (n : ℕ) :
-|
-|-------------- sum-zero
-| Zero + n = n
+rule schema sum-zero for all objects (n : ℕ) =  ---------------- sum-zero
+                                                  Zero + n = n
 
 
-rule schema sum-suc for all objects (m : ℕ), (n : ℕ), (o : ℕ) :
+rule schema sum-suc for all objects (m : ℕ) (n : ℕ) (o : ℕ) =
 
-| m + n = o
-|-------------------- sum-suc
-| Suc m + n = Suc o
+  m + n = o
+--------------------- sum-suc
+  Suc m + n = Suc o
 
 
 
