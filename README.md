@@ -130,6 +130,17 @@ You can use whatever names you want. Almost all characters are allowed except so
 See the [`./examples`](./examples) directory for a few examples.
 
 
+## Automated Proving
+The tool now supports a somewhat automated proof search.
+The goal is to focus on very interactive proving. It is not a goal to build a powerful automated theorem prover.
+However, with the correct use of tactics (in the future) it maybe could be.
+
+The theorem `total` from above now can be proved trivially:
+
+```
+theorem total : ∀ (N : ℕ) (M : ℕ) : ∃ (O : ℕ) : Sum(N, M, O)
+prove by induction ∀ (N : ℕ) (M : ℕ) : ∃ (O : ℕ) : Sum(N, M, O)
+```
 
 ------
 ------
@@ -173,6 +184,13 @@ See the [`./examples`](./examples) directory for a few examples.
 - [ ] Typed Stuff
   - [x] typing for terms
   - [x] type unification
+
+- [ ] automated proving
+  - [ ] all connectives
+  - [ ] quantified formulae
+  - [x] induction
+  - [x] using theorems
+  - [x] using local assertions
 
 - [ ] second-order features
   - [ ] theorem schemata
