@@ -178,7 +178,7 @@ prove ∀ (N : ℕ) (M : ℕ) : ∃ (O : ℕ) : Sum(N, M, O)
 
 ## TODO:
 - [x] remove the substitution `Const2Term`
-- [ ] maybe have a special kind of term like `Rigid` variable? I don't remember for what, though.
+- [x] maybe have a special kind of term like `Rigid` variable? I don't remember for what, though.
 
 
 ## TODO:
