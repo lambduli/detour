@@ -454,8 +454,7 @@ Proof       ::  { [Judgment] }
                                             -- ; $$.outScope = $1.outScope `union` $2.outScope }
             |   '_' PropVar ':=' Formula Proof
                                             { (JD.Alias ('_' : $2) $4) : $5 }
-            |   'prove' 'by' 'induction' Formula Proof
-                                            { (JD.Prove $4) : $5 }
+            |   'prove' Formula Proof       { (JD.Prove $2) : $3 }
             |   {- empty -}                 { [] }
                                             -- ; $$.outScope = empty }
 

@@ -139,7 +139,7 @@ The theorem `total` from above now can be proved trivially:
 
 ```
 theorem total : ∀ (N : ℕ) (M : ℕ) : ∃ (O : ℕ) : Sum(N, M, O)
-prove by induction ∀ (N : ℕ) (M : ℕ) : ∃ (O : ℕ) : Sum(N, M, O)
+prove ∀ (N : ℕ) (M : ℕ) : ∃ (O : ℕ) : Sum(N, M, O)
 ```
 
 ------
