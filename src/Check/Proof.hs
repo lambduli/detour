@@ -323,7 +323,15 @@ proof'search fm@(F.Atom (Rel name terms)) = do
 
         theors <- asks theorems
         -- traceM ("theorems available are " ++ List.intercalate "\n" (map show (Map.elems theors)))
-        result <- findM (\ (_, T.Theorem{ T.name, assumptions, conclusion }) -> catchError (do { List.foldr F.Impl conclusion assumptions `proves` fm ; return True }) (\ _ -> return False)) (Map.assocs theors)
+        result <- findM (\ (_, T.Theorem{ T.name, prop'vars, assumptions, conclusion })
+                          -> catchError (do
+                                            old'new <- mapM (\ s -> do { n <- fresh'name ; return (s, n) } ) prop'vars
+                                            let sub = concatMap (\ (o, n) -> Prop'Var o ==> Atom (Meta'Rel (Prop'Var n))) old'new
+
+                                            let assumptions' = apply sub assumptions
+                                            let conclusion' = apply sub conclusion
+                                            List.foldr F.Impl conclusion' assumptions' `proves` fm
+                                            return True) (\ _ -> return False)) (Map.assocs theors)
 
         case result of
           Nothing -> do
