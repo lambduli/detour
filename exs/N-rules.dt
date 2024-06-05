@@ -208,20 +208,18 @@ theorem total : ∀ (n₁ : ℕ) (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( n₁ , n
 -- 
 -- 
 
-assume d1 : Sum( Suc(Suc(Zero)) , n , Suc(m) )
-
-I do case analysis on it and have this case:
-
-| get : Sum( Suc(Zero) , N , M )
-|--------------------------------------------- sum-suc
-| have : Sum( Suc(Suc(Zero)) , N , Suc(M) )
-
-
-When I unify "have" with d1 I get this substitution:
-n -> N
-m -> M
-
-
+-- assume d1 : Sum( Suc(Suc(Zero)) , n , Suc(m) )
+-- 
+-- I do case analysis on it and have this case:
+-- 
+-- | get : Sum( Suc(Zero) , N , M )
+-- |--------------------------------------------- sum-suc
+-- | have : Sum( Suc(Suc(Zero)) , N , Suc(M) )
+-- 
+-- 
+-- When I unify "have" with d1 I get this substitution:
+-- n -> N
+-- m -> M
 
 
 
@@ -229,9 +227,11 @@ m -> M
 
 
 
-| Sum(m, n, o)
-|-------------------------------------- sum-suc
-| Sum(Suc(m), n, Suc(o))
+
+
+-- | Sum(m, n, o)
+-- |-------------------------------------- sum-suc
+-- | Sum(Suc(m), n, Suc(o))
 
 
 -- judgment schema conj for all propositions A, B = AND(A, B)
@@ -242,35 +242,35 @@ m -> M
 --                                                  | AND(A, B)
 
 
-judgment Even(Ν) :
-rule even-z :
-
-|
-|-------------- even-z
-| Even(Zero)
-
-rule schema even-s for any object (n : ℕ) :
-
-| Even(n)
-|-------------------- even-s
-| Even(Suc(Suc(n)))
-
-
-theorem even? : Even(n1), Even(n2) ⊢ n1 + n2 = n3 ∧ Even(n3)
-suc (suc n1') + n2 = suc n3'  where n3 = suc n3'
-
--> scitani
-suc n1' + n2 = suc n3''  where n3' = suc n3''
-
--> scitani
-n1' + n2 = n3''
-
---> induction : Even(n3'')
-
--> even-s na n3''
-
--- hotovo
-
+-- judgment Even(Ν) :
+-- rule even-z :
+-- 
+-- |
+-- |-------------- even-z
+-- | Even(Zero)
+-- 
+-- rule schema even-s for any object (n : ℕ) :
+-- 
+-- | Even(n)
+-- |-------------------- even-s
+-- | Even(Suc(Suc(n)))
+-- 
+-- 
+-- theorem even? : Even(n1), Even(n2) ⊢ n1 + n2 = n3 ∧ Even(n3)
+-- suc (suc n1') + n2 = suc n3'  where n3 = suc n3'
+-- 
+-- -> scitani
+-- suc n1' + n2 = suc n3''  where n3' = suc n3''
+-- 
+-- -> scitani
+-- n1' + n2 = n3''
+-- 
+-- --> induction : Even(n3'')
+-- 
+-- -> even-s na n3''
+-- 
+-- -- hotovo
+-- 
 
 theorem what-even : ⊤
 1 : | for any (n : ℕ)

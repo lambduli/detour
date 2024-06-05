@@ -8,6 +8,7 @@ import Syntax.Judgment ( Judgment )
 
 
 data Theorem = Theorem  { name :: String
+                        , prop'vars :: [String]
                         , assumptions :: [Formula]
                         , conclusion :: Formula
                         , proof :: [Judgment] }
@@ -19,8 +20,10 @@ instance Show Theorem where
   --  TODO: if the assumptions are empty, don't print them and the ⊢, only print the conclusion
   --  TODO: ?
   show :: Theorem -> String
-  show Theorem{ name, assumptions, conclusion, proof }
-    = "theorem " ++ name ++ " : "
+  show Theorem{ name, prop'vars, assumptions, conclusion, proof }
+    = "theorem schema " ++ name ++ "for propositions"
+        ++ intercalate ", " prop'vars
+        ++ " : "
         ++ intercalate ", " (map show assumptions)
         ++ " ⊢ " ++ show conclusion
         ++ "\n" ++ intercalate "\n" (map show proof)

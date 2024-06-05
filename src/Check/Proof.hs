@@ -544,12 +544,19 @@ justifies Rule{ kind = rule, on = identifiers } fm = do
   check'rule rule assertions fm
 
 justifies (J.Theorem { J.name, on = identifiers }) fm = do
-  T.Theorem { assumptions, conclusion, proof } <- look'up'theorem name
+  T.Theorem { prop'vars, assumptions, conclusion, proof } <- look'up'theorem name
+
+  --  I need to instantiate the prop'vars in all the assumptions and also the conclusion
+  old'new <- mapM (\ s -> do { n <- fresh'name ; return (s, n) } ) prop'vars
+  let sub = concatMap (\ (o, n) -> Prop'Var o ==> Atom (Meta'Rel (Prop'Var n))) old'new
+
+  let assumptions' = apply sub assumptions
+  let conclusion' = apply sub conclusion
 
   assertions <- mapM id'to'assert identifiers
-  assertions `unify` assumptions
+  assertions `unify` assumptions'
 
-  fm `unify` conclusion
+  fm `unify` conclusion'
 
 justifies Unproved _ = do
   return ()

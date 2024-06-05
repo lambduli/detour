@@ -10,7 +10,7 @@ import Control.Monad.State ( MonadState(get, put), gets )
 import Control.Monad.Except ( throwError )
 
 import Check.Error ( Error(..) )
-import Check.Check ( fresh'constant, Check, fresh'type )
+import Check.Check ( fresh'constant, Check, fresh'type, fresh'name )
 import Check.Environment ( Environment(..) )
 import Check.State ( State(..), Level(..) )
 import Check.Vars ( Vars(free) )
@@ -19,6 +19,8 @@ import Check.Proof  ( check'all
                     , collect'free'vars'in'formula
                     , collect'free'vars'in'judgment )
 import Check.Solver ( solve )
+import Check.Substitution
+import Check.Substitute
 
 import Syntax.Formula ( Formula(..) )
 import Syntax.Term ( Free, Free(..) )
@@ -31,6 +33,7 @@ import Syntax.Assumption ( Assumption(..) )
 import Syntax.Claim ( Claim(..) )
 import Syntax.Claim qualified as C
 import Syntax.Type ( Type'Scheme(..) )
+import Syntax.Relation ( Prop'Var(Prop'Var), Relation(Rel, Meta'Rel) )
 
 import Data.List.Extra ( intercalate )
 
@@ -55,9 +58,24 @@ import Data.List.Extra ( intercalate )
     | ...                                   -}
 check'theorem :: Theorem -> Check ()
 check'theorem T.Theorem { T.name
+                        , prop'vars
                         , assumptions = formulae
                         , conclusion
                         , proof = derivations } = do
+
+  --  I need to instantiate all the prop'vars to some unique propositions.
+  --  It doesn't matter what they will be, they just must not be meta-rels.
+
+  --  this should be enough
+  --  I should be able to do this, because each theorem is checked in isolation
+  mapM_ (\ s -> do { n <- fresh'name ; Atom (Meta'Rel (Prop'Var s)) `unify` Atom (Rel n []) }) prop'vars
+  -- old'new <- mapM (\ s -> do { n <- fresh'name ; return (s, n) }) prop'vars
+  -- let subs = concatMap (\ (o, n) -> Prop'Var o ==> Atom (Rel n [])) old'new
+  -- let formulae' = apply subs formulae
+  -- let conclusion' = apply subs conclusion
+  -- let derivations' = apply subs derivations
+
+
   --  I need to traverse the proof (List of Derivations).
   --  The traversing function might succeed and return the last derivation.
   --  That can be a sub-proof too.

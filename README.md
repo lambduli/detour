@@ -86,6 +86,36 @@ A theorem is a statement followed by its proof.
 theorem total : ∀ (n₁ : ℕ) (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( n₁ , n₂ , n₃ )
 ```
 
+#### Second-order Theorems
+We can have theorems parametrized by propositions.
+Here is an example:
+
+```
+theorem schema modus-ponens for all propositions P, K : P ==> K
+                                                      , P
+                                                      ⊢ K
+
+| p->k : P ==> K
+| p : P
+|--------------------
+|
+| K  by rule ==>-elim on p->k, p
+```
+
+We can then use this theorem as normal.
+
+```
+theorem use-modus-ponens : A ==> B , A ⊢ B
+
+| a->b : A ==> B
+| a : A
+|-------------------
+|
+| B  by theorem modus-ponens on a->b, a
+```
+
+> Note the difference! `P` and `K` are parameters so they are not actual propositional constants whereas `A` and `B` are understood as specific propositions.
+
 
 ### Proofs
 Proofs are the most visually involved part. You start by writing the vertical and horizontal lines:
@@ -193,7 +223,7 @@ prove ∀ (N : ℕ) (M : ℕ) : ∃ (O : ℕ) : Sum(N, M, O)
   - [x] using local assertions
 
 - [ ] second-order features
-  - [ ] theorem schemata
+  - [x] theorem schemata
   - [ ] rule and judgment schemata over propositions
 
 - [ ] ~~REPL~~

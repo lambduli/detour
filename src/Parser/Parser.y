@@ -94,7 +94,6 @@ import Check.Substitute
   'object'        { Token.Object }
   'objects'       { Token.Object }
   'proposition'   { Token.Proposition }
-  'propositions'  { Token.Proposition }
   'prove'         { Token.Prove }
   ':='            { Token.Defines }
   ':'             { Token.Colon }
@@ -306,14 +305,46 @@ Theorems    ::  { [Theorem] }
 Theorem     ::  { Theorem }
             :   'theorem' IDENT ':' Assumptions '⊢' Conclusion Proof
                                             { T.Theorem { T.name = $2
-                                                      , assumptions = $4
-                                                      , conclusion = $6
-                                                      , proof = $7 } }
+                                                        , prop'vars = []
+                                                        , assumptions = $4
+                                                        , conclusion = $6
+                                                        , proof = $7 } }
+            |   'theorem' 'schema' IDENT 'for' 'all' 'proposition' Props ':' Assumptions '⊢' Conclusion Proof
+                                            {% do
+                                                { s <- alexGetUserState
+                                                ; alexSetUserState s{ p'vars = [] }
+                                                ; return $! T.Theorem { T.name = $3
+                                                                      , prop'vars = $7
+                                                                      , assumptions = $9
+                                                                      , conclusion = $11
+                                                                      , proof = $12 } } }
             |   'theorem' IDENT ':' Formula Proof
                                             { T.Theorem { T.name = $2
-                                                      , assumptions = []
-                                                      , conclusion = $4
-                                                      , proof = $5 } }
+                                                        , prop'vars = []
+                                                        , assumptions = []
+                                                        , conclusion = $4
+                                                        , proof = $5 } }
+            |   'theorem' 'schema' IDENT 'for' 'all' 'proposition' Props ':' Formula Proof
+                                            {% do
+                                                { s <- alexGetUserState
+                                                ; alexSetUserState s{ p'vars = [] }
+                                                ; return $! T.Theorem { T.name = $3
+                                                                      , prop'vars = $7 
+                                                                      , assumptions = []
+                                                                      , conclusion = $9
+                                                                      , proof = $10 } } }
+
+
+Props       ::  { [String] }
+            :   PropsAux                    {% do
+                                                { s <- alexGetUserState
+                                                ; alexSetUserState s{ p'vars = $1 }
+                                                ; return $1 } }
+
+
+PropsAux    ::  { [String] }
+            :   PropVar                     { [$1] }
+            |   PropVar ',' PropsAux        { $1 : $3 }
 
 
 Assumptions ::  { [Formula] }
@@ -383,9 +414,15 @@ QFormula    ::  { Formula }
 
 
 Relation    ::  { Relation }
-            :   PropVar TermArgsM           { case $2 of
-                                                    { Just terms -> Rel $1 terms
-                                                    ; Nothing -> Rel $1 [] } }
+            :   PropVar TermArgsM           {% do
+                                                { case $2 of
+                                                    { Just terms -> return (Rel $1 terms)
+                                                    ; Nothing -> do
+                                                      { s <- alexGetUserState
+                                                      ; let p'vs = p'vars s
+                                                      ; if $1 `List.elem` p'vs
+                                                        then return (Meta'Rel (Prop'Var $1))
+                                                        else return (Rel $1 []) } } } }
             |   '_'                         {% do
                                                 { name <- fresh'name
                                                 ; return (Meta'Rel (Prop'Var name))  } }
