@@ -31,6 +31,7 @@ data Token  = Ident String
             | Unproved        --  unproved
             | Case            --  case
             | Analysis        --  analysis
+            | Prove           --  prove
 
             | Tautology       --  ⊤
             | Contradiction   --  ⊥

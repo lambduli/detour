@@ -97,6 +97,7 @@ $space+                 ;
   "objects"               { emit Token.Object }
   "proposition"           { emit Token.Proposition }
   "propositions"          { emit Token.Proposition }
+  "prove"                 { emit Token.Prove }
 
   "="                     { emit Token.Equal }
 

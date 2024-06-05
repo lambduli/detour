@@ -1,0 +1,60 @@
+module ℕ
+
+
+aliases : 2 = Suc(Suc(Zero))
+        , 3 = Suc(Suc(Suc(Zero)))
+        , 5 = Suc(Suc(Suc(Suc(Suc(Zero)))))
+
+
+syntax ℕ  = Zero    --  Zero : ℕ
+          | Suc(ℕ)  --  Suc  : ℕ -> ℕ
+
+
+judgment sum = Sum(ℕ, ℕ, ℕ)
+
+rule schema sum-zero for all objects (n : ℕ) :
+|
+|-------------------------------------- sum-zero
+| Sum(Zero, n, n)
+
+
+rule schema sum-suc for all objects (m : ℕ), (n : ℕ), (o : ℕ) :
+| Sum(m, n, o)
+|-------------------------------------- sum-suc
+| Sum(Suc(m), n, Suc(o))
+
+
+
+
+theorem 2+3=5 : Sum(2, 3, 5)
+prove sum Sum(2, 3, 5)
+--  this should start with something like Sum( a? , b? , c? )
+--  it should then try to match that goal using all of the rules of sum
+--
+--  it tries sum-suc:
+--    | Sum(m, n, o)
+--    |-------------------------------------- sum-suc
+--    | Sum(Suc(m), n, Suc(o))
+--
+--  Suc(m) is unified with a?
+--  this succeeds, because a? is actually 2
+--
+--  Suc(o) is unified with c?
+--  this succeeds, because c? is actually 5
+--
+--  The new goal is now Sum( m? , b? , o? )
+--  which is actually Sum( 1 , b? , 4 )
+--
+--
+--  This goes on and on. Until we get a goal Sum( Zero, 3 , 3 )
+--  This goal succeeds through sum-zero
+--  
+--
+--
+--  it tries sum-zero:
+--    |
+--    |-------------------------------------- sum-zero
+--    | Sum(Zero, n, n)
+--
+--  
+

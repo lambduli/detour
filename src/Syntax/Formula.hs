@@ -83,8 +83,8 @@ instance Show Formula where
   -- show (Forall x p) = "∀ " ++ x ++ " : " ++ show p
   -- show (Exists x p) = "∃ " ++ x ++ " : " ++ show p
 
-  show (Forall (x, t) p) = "∀ " ++ x ++ " : " ++ show p
-  show (Exists (x, t) p) = "∃ " ++ x ++ " : " ++ show p
+  show (Forall (x, t) p) = "∀ (" ++ x ++ " : " ++ show t ++ ") : " ++ show p
+  show (Exists (x, t) p) = "∃ (" ++ x ++ " : " ++ show t ++ ") : " ++ show p
 
 
 is'compound :: Formula -> Bool

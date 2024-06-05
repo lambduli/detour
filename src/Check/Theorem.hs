@@ -121,6 +121,9 @@ check'theorem T.Theorem { T.name
     Just (_, c@(J.Claim _)) -> do
       check'conclusion c conclusion
 
+    Just (_, c@(J.Prove _)) -> do
+      check'conclusion c conclusion
+
     Just (_, Alias _ _) -> do
       throwError $! Err "The last judgment of a theorem needs to be a claim or a proof, not an alias."
 
@@ -146,6 +149,9 @@ check'conclusion c@(J.Claim (C.Claim { formula })) fm = do
 
   --  It does the "failure recovery" so that it can change the value of the error if it fails.
   --  If it doesn't fail, it does nothing.
+
+check'conclusion c@(J.Prove formula) fm = do
+  formula `unify` fm
 
 check'conclusion der fm = do
   throwError $! Err "Wrong conclusion."

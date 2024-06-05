@@ -21,4 +21,5 @@ data Type'Scheme = Forall'T [String] Type
 
 
 instance Show Type'Scheme where
+  show (Forall'T [] t) = show t
   show (Forall'T params t) = "forall " ++ intercalate " " params ++ " . " ++ show t
