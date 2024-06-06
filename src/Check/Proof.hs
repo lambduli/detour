@@ -295,13 +295,13 @@ proof'search fm@(F.Atom (Rel name terms)) = do
 
   --  juds :: [ Jud String (String, [Type]) [Rule] ]
   juds <- gets judgments
-  results <-  case List.find (\ (Ju.Jud _ (n, _) _) -> n == name) juds of
+  results <-  case List.find (\ (Ju.Jud _ _ (n, _) _) -> n == name) juds of
                 Nothing -> do
                   --  no judgment for this goal
                   --  is that even ok?
                   throwError $! Err ("the goal `" ++ show fm ++ "' is formed by an unknown judgment.")
 
-                Just (Ju.Jud _ _ rules) -> do
+                Just (Ju.Jud _ _ _ rules) -> do
                   mapM concl'matches rules
 
   if not (any id results)
@@ -374,16 +374,18 @@ proof'search fm@(F.Atom (Rel name terms)) = do
   --  if I find some rules but don't find a proof I might also try local assertions and theorems
 
   where concl'matches :: Ju.Rule -> Check Bool
-        concl'matches (Ju.Rule _ params premises conclusion) = do
+        concl'matches (Ju.Rule _ prop'vars params premises conclusion) = do
           fresh'typed <- mapM (\ (n, t) -> do { fn <- fresh'name ; return (n, fn, t) }) params
-          subst <- concatMapM (\ (old, new, typ) -> do  { let ts = Forall'T [] typ
-                                                        ; let t'patch = Map.singleton new ts
-                                                        ; d <- asks depth
-                                                        ; let d'patch = Map.singleton (F new) (d + 1)
-                                                        ; s <- get
-                                                        ; put s { typing'ctx = typing'ctx s `Map.union` t'patch
-                                                                , free'depth'context = free'depth'context s `Map.union` d'patch }
-                                                        ; return (F old ==> Var (Free (F new))) }) fresh'typed
+          subst'1 <- concatMapM (\ (old, new, typ) -> do  { let ts = Forall'T [] typ
+                                                          ; let t'patch = Map.singleton new ts
+                                                          ; d <- asks depth
+                                                          ; let d'patch = Map.singleton (F new) (d + 1)
+                                                          ; s <- get
+                                                          ; put s { typing'ctx = typing'ctx s `Map.union` t'patch
+                                                                  , free'depth'context = free'depth'context s `Map.union` d'patch }
+                                                          ; return (F old ==> Var (Free (F new))) }) fresh'typed
+          subst'2 <- concatMapM (\ s -> do { p <- fresh'name ; return (Prop'Var s ==> Atom (Meta'Rel (Prop'Var p))) }) prop'vars
+          let subst = subst'1 ++ subst'2
           let concl' = apply subst conclusion
           catchError  (do fm `unify` concl'
                           let premises' = apply subst premises

@@ -19,7 +19,7 @@ import Syntax.Claim qualified as C
 import Syntax.Justification ( Justification(..) )
 import Syntax.Formula ( Formula(Exists, Atom, Not, And, Or, Impl, Eq, Forall) )
 import Syntax.Formula qualified as F
-import Syntax.Relation ( Relation(..), Prop'Var(..) )
+import Syntax.Relation ( Relation(..), Prop'Var(..), Rel'Args(..) )
 import Syntax.Term ( Term(..), Bound(..), Var(..), Free(..), Rigid(..) )
 import Syntax.Type ( Type(..), Type'Scheme(..) )
 import Syntax.Case ( Case(..) )
@@ -123,6 +123,12 @@ instance Substitute Formula where
   apply subst (Forall (var, t) fm) = Forall (var, t) (apply (Substitution.remove (B var) subst) fm)
   
   apply subst (Exists (var, t) fm) = Exists (var, t) (apply (Substitution.remove (B var) subst) fm)
+
+
+instance Substitute Rel'Args where
+  apply :: Substitution -> Rel'Args -> Rel'Args
+  apply subst (RL'Terms terms) = RL'Terms (apply subst terms)
+  apply subst (RL'Formulae fms) = RL'Formulae (apply subst fms)
 
 
 instance Substitute Type where

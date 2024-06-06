@@ -33,7 +33,7 @@ import Syntax.Assumption ( Assumption(..) )
 import Syntax.Claim ( Claim(..) )
 import Syntax.Claim qualified as C
 import Syntax.Type ( Type'Scheme(..) )
-import Syntax.Relation ( Prop'Var(Prop'Var), Relation(Rel, Meta'Rel) )
+import Syntax.Relation ( Prop'Var(Prop'Var), Relation(Rel, Meta'Rel), Rel'Args(..) )
 
 import Data.List.Extra ( intercalate )
 
@@ -68,7 +68,8 @@ check'theorem T.Theorem { T.name
 
   --  this should be enough
   --  I should be able to do this, because each theorem is checked in isolation
-  mapM_ (\ s -> do { n <- fresh'name ; Atom (Meta'Rel (Prop'Var s)) `unify` Atom (Rel n []) }) prop'vars
+  --  NOTE: The reason why the "rigid" relation is over terms and not over formulae is because those abstracted-over relations are supposed to be first-order
+  mapM_ (\ s -> do { n <- fresh'name ; Atom (Meta'Rel (Prop'Var s)) `unify` Atom (Rel n (RL'Terms [])) }) prop'vars
   -- old'new <- mapM (\ s -> do { n <- fresh'name ; return (s, n) }) prop'vars
   -- let subs = concatMap (\ (o, n) -> Prop'Var o ==> Atom (Rel n [])) old'new
   -- let formulae' = apply subs formulae

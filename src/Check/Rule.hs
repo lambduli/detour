@@ -444,11 +444,14 @@ check'rule Repetition _ _ = do
   throwError $! Err "I saw wrong number or shapes of arguments to the rule `repetition'."
 
 check'rule (Custom name) assertions formula = do
-  J.Rule _ typings premises conclusion <- find'rule name
+  J.Rule _ prop'vars typings premises conclusion <- find'rule name
 
   triples <- mapM (\ (n, t) -> do { v <- fresh'free ; return (n, v, t) }) typings
+  pairs <- mapM (\ n -> do { p <- fresh'name ; return (n, p) }) prop'vars
 
-  let sub = concatMap (\ (old, new, _) -> F old ==> Var (Free new)) triples
+  let sub'1 = concatMap (\ (old, new, _) -> F old ==> Var (Free new)) triples
+  let sub'2 = concatMap (\ (old, new) -> Prop'Var old ==> Atom (Meta'Rel (Prop'Var new))) pairs
+  let sub = sub'1 ++ sub'2
 
   let premises' = apply sub premises
   let conclusion' = apply sub conclusion
@@ -467,12 +470,12 @@ check'rule rule assertions formula = do
 find'rule :: String -> Check J.Rule
 find'rule name = do
   juds <- gets judgments
-  case List.find (\ (J.Jud _ _ rules) -> isJust $! List.find (\ (J.Rule n _ _ _) -> name == n) rules) juds of
+  case List.find (\ (J.Jud _ _ _ rules) -> isJust $! List.find (\ (J.Rule n _ _ _ _) -> name == n) rules) juds of
     Nothing -> do
       throwError $! Err ("I don't know the rule named `" ++ name ++ "'.")
 
-    Just (J.Jud _ _ rules) -> do
-      case List.find (\ (J.Rule n _ _ _) -> name == n) rules of
+    Just (J.Jud _ _ _ rules) -> do
+      case List.find (\ (J.Rule n _ _ _ _) -> name == n) rules of
         Nothing -> error "internal error: this should never happen"
 
         Just rule -> do

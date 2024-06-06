@@ -6,7 +6,7 @@ import Prelude qualified as P
 import Data.List ( intercalate )
 
 -- import Syntax.Term ( Term(..) )
-import Syntax.Relation ( Relation(..), Prop'Var(..) )
+import Syntax.Relation ( Relation(..), Prop'Var(..), Rel'Args(..) )
 import Syntax.Type ( Type, Type'Scheme )
 
 
@@ -31,9 +31,9 @@ instance Show Formula where
   show :: Formula -> String
   show True = "⊤"
   show False = "⊥"
-  show (Atom (Rel n [])) = n
-  show (Atom (Rel n terms)) = n ++ "(" ++ intercalate ", " (map show terms) ++ ")"
-  show (Atom (Meta'Rel (Prop'Var n))) = "_" ++ n
+  show (Atom (Rel n (RL'Terms []))) = n
+  show (Atom (Rel n (RL'Formulae []))) = n
+  show (Atom rel) = show rel
   show (Not p) | is'compound p  = "¬(" ++ show p ++ ")"
   show (Not p) = "¬" ++ show p
 

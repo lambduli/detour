@@ -20,7 +20,7 @@ import Check.Error ( Error(..) )
 import Check.Types ( instantiate'scheme )
 
 import Syntax.Term ( Term(..), Var(..), Rigid(..), Free(..), Constant(..), Bound(..) )
-import Syntax.Relation ( Relation(..), Prop'Var(..) )
+import Syntax.Relation ( Relation(..), Prop'Var(..), Rel'Args(..) )
 import Syntax.Formula hiding ( True, False )
 import Syntax.Formula qualified as F
 import Syntax.Type ( Type(..) )
@@ -192,7 +192,13 @@ instance Unifier Formula where
   left `mgu` f@(Atom (Meta'Rel (Prop'Var _))) = do
     f `mgu` left
 
-  l@(Atom (Rel n args)) `mgu` r@(Atom (Rel n' args'))
+  l@(Atom (Rel n (RL'Terms args))) `mgu` r@(Atom (Rel n' (RL'Terms args')))
+    | n == n' = do
+      mapM_ (\ (a, a') -> collect (a :≡: a')) (zip args args')
+      args `mgu` args'
+    | otherwise = throwError $! Err ("I could not unify `" ++ show l ++ "' with `" ++ show r ++ "'.")  --  TODO: unification error, they are not the same formula
+
+  l@(Atom (Rel n (RL'Formulae args))) `mgu` r@(Atom (Rel n' (RL'Formulae args')))
     | n == n' = do
       mapM_ (\ (a, a') -> collect (a :≡: a')) (zip args args')
       args `mgu` args'
