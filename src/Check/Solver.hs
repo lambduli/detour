@@ -4,8 +4,9 @@ module Check.Solver where
 
 
 -- import Control.Monad.Reader ( ReaderT, asks, local )
-import Control.Monad.State ( gets, get, put )
-import Control.Monad.Except ( throwError )
+-- import Control.Monad.State ( gets, get, put )
+-- import Control.Monad.Except ( throwError )
+import Control.Monad.InteractT
 import Control.Monad.Extra ( whenM, anyM )
 
 
@@ -26,7 +27,7 @@ import Syntax.Formula qualified as F
 import Syntax.Type ( Type(..) )
 
 
-solve :: Check ()
+solve :: Monad m => Check m ()
 solve = do
   _ <- get'subst
   return ()
@@ -43,7 +44,7 @@ solve = do
 --  This should be very much equivalent to as if it was solved during one big go.
 
 
-solve'constraints :: (Unifier a, Substitute a) => [Constraint a] -> Substitution -> Check Substitution
+solve'constraints :: (Monad m, Unifier a, Substitute a) => [Constraint a] -> Substitution -> Check m Substitution
 solve'constraints [] sub = return sub
 solve'constraints ((a :≡: a') : cs) sub = do
   sub' <- a `mgu` a'
@@ -53,7 +54,7 @@ solve'constraints ((a :≡: a') : cs) sub = do
   solve'constraints (apply sub' cs) (sub' `compose` sub)
 
 
-get'subst :: Check Substitution
+get'subst :: Monad m => Check m Substitution
 get'subst = do
   term'cons <- gets term'constraints
   formula'cons <- gets formula'constraints
@@ -66,11 +67,11 @@ get'subst = do
 
 
 class Unifier b where
-  mgu :: b -> b -> Check Substitution
+  mgu :: Monad m => b -> b -> Check m Substitution
 
 
 instance Unifier Term where
-  mgu :: Term -> Term -> Check Substitution
+  mgu :: Monad m => Term -> Term -> Check m Substitution
   Bound l@(B n) `mgu` Bound r@(B n')
     --  TYPE-CHECK: I don't need to check that their types are the same. They must be.
     | n == n' = return Substitution.empty
@@ -138,7 +139,7 @@ instance Unifier Term where
 
 
 instance Unifier Formula where
-  mgu :: Formula -> Formula -> Check Substitution
+  mgu :: Monad m => Formula -> Formula -> Check m Substitution
   F.True `mgu` F.True = do
     return Substitution.empty
 
@@ -256,7 +257,7 @@ instance Unifier Formula where
 
 
 instance Unifier Type where
-  mgu :: Type -> Type -> Check Substitution
+  mgu :: Monad m => Type -> Type -> Check m Substitution
   Type'Const l `mgu` Type'Const r
     | l == r = return Substitution.empty
     | otherwise = throwError $! Err ("I could not unify two non-identical types, the `" ++ l ++ "' with `" ++ r ++ "'.")
@@ -281,7 +282,7 @@ instance Unifier Type where
 
 
 instance (Unifier b, Substitute b) => Unifier [b] where
-  mgu :: [b] -> [b] -> Check Substitution
+  mgu :: Monad m => [b] -> [b] -> Check m Substitution
   [] `mgu` [] = return Substitution.empty
 
   (b : bs) `mgu` (b' : bs') = do
@@ -334,7 +335,7 @@ instance Occurs String Type where
 
 
 --  TODO: refactor!!! #var
-escapes'to :: Term -> Int -> Check Bool
+escapes'to :: Monad m => Term -> Int -> Check m Bool
 Bound _ `escapes'to` _ -- = return False
   = error "internal error: Bound variable participating in unification."
   --  TODO: I could also just return False and save this dramatic piece of code.

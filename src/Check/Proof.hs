@@ -7,9 +7,10 @@ import Data.List qualified as List
 import Data.Maybe ( mapMaybe, catMaybes )
 
 -- import Control.Monad ( when, unless )
-import Control.Monad.Reader ( ReaderT, asks, local )
-import Control.Monad.State ( MonadState(get, put), gets )
-import Control.Monad.Except ( Except, runExcept, throwError, catchError )
+-- import Control.Monad.Reader ( ReaderT, asks, local )
+-- import Control.Monad.State ( MonadState(get, put), gets )
+-- import Control.Monad.Except ( Except, runExcept, throwError, catchError )
+import Control.Monad.InteractT
 import Control.Monad.Extra
 
 import Check.Error ( Error(..) )
@@ -51,7 +52,7 @@ import Syntax.Syntax ( Syntax(..), Constructor(..) )
 import Debug.Trace ( traceM )
 
 
-check'proof :: Proof -> Check ()
+check'proof :: (Monad m, Interact Q m) => Proof -> Check m ()
 check'proof Proof{ assumption = Universal binds , derivations } = do
   d <- asks depth
 
@@ -131,7 +132,7 @@ check'proof Proof{ assumption = Formula bindings, derivations } = do
           to'assertion (Just n, a) = Just (n, Assumed a)
 
 
-last'derivation :: [Judgment] -> Check Judgment
+last'derivation :: Monad m => [Judgment] -> Check m Judgment
 last'derivation derivations = do
   case List.unsnoc derivations of
     Nothing -> do
@@ -140,7 +141,7 @@ last'derivation derivations = do
       return last
 
 
-check'all :: [Judgment] -> Check ()
+check'all :: (Monad m, Interact Q m) => [Judgment] -> Check m ()
 check'all [] = do
   throwError $! Err "Empty proofs are not allowed." -- Empty'Proof Nothing
 
@@ -153,7 +154,7 @@ check'all (judgment : judgments) = do
   (in'scope'of judgment (check'all judgments))
 
 
-in'scope'of :: Judgment -> Check a -> Check a
+in'scope'of :: (Monad m, Interact Q m) => Judgment -> Check m a -> Check m a
 in'scope'of judgment@(Sub'Proof Proof{ P.name = Just name, assumption, derivations }) m = do
   last <- last'derivation derivations
 
@@ -196,7 +197,7 @@ in'scope'of j@(J.Prove _) m = do
   m
 
 
-check'judgment :: Judgment -> Check ()
+check'judgment :: (Monad m, Interact Q m) => Judgment -> Check m ()
 check'judgment (Sub'Proof p@Proof{ P.name, assumption, derivations }) = do
   check'proof p
 
@@ -215,7 +216,7 @@ check'judgment (J.Prove fm) = do
 
 
 
-proves :: Formula -> Formula -> Check ()
+proves :: Monad m => Formula -> Formula -> Check m ()
 proves fm'@F.True fm = fm' `unify` fm
 
 proves fm'@F.False fm = fm' `unify` fm
@@ -267,7 +268,7 @@ proves (F.Exists (name, ts) body) fm = do
   proves body' fm
 
 
-proof'search :: Formula -> Check ()
+proof'search :: (Monad m, Interact Q m) => Formula -> Check m ()
 proof'search F.True = do
   return ()
 
@@ -335,6 +336,7 @@ proof'search fm@(F.Atom (Rel name terms)) = do
 
         case result of
           Nothing -> do
+            IDK <- inter (What'Next (Context{ goal = fm }))
             throwError $! Err ("I didn't find any local assertion or theorems that would prove the goal `" ++ show fm ++ "'.")
 
           Just (n, t) -> do
@@ -373,7 +375,7 @@ proof'search fm@(F.Atom (Rel name terms)) = do
 
   --  if I find some rules but don't find a proof I might also try local assertions and theorems
 
-  where concl'matches :: Ju.Rule -> Check Bool
+  where concl'matches :: (Monad m, Interact Q m) => Ju.Rule -> Check m Bool
         concl'matches (Ju.Rule _ prop'vars params premises conclusion) = do
           fresh'typed <- mapM (\ (n, t) -> do { fn <- fresh'name ; return (n, fn, t) }) params
           subst'1 <- concatMapM (\ (old, new, typ) -> do  { let ts = Forall'T [] typ
@@ -513,7 +515,7 @@ proof'search fm@(F.Forall _ _) = do
 
   --  take it from here
 
-  where search'case :: Free -> Type -> Formula -> (Formula, Constructor, [Rigid]) -> Check ()
+  where search'case :: (Monad m, Interact Q m) => Free -> Type -> Formula -> (Formula, Constructor, [Rigid]) -> Check m ()
         search'case f t fm' (goal, Constructor _ types, rs) = do
           let typed'rigids = filter (\ (_, typ) -> t == typ) (zip rs types)
           let hypotheses = map (\ (r, _) -> apply (f ==> (Var (Rigid r))) fm') typed'rigids
@@ -527,7 +529,7 @@ proof'search fm@(F.Forall _ _) = do
                 (proof'search goal)
 
 
-con'to'goal :: Constructor -> Check ([Rigid], Term)
+con'to'goal :: Monad m => Constructor -> Check m ([Rigid], Term)
 con'to'goal (Constructor c'name types) = do
   fresh'and'typed <- mapM (\ t -> fresh'name >>= \ n -> return (n, Forall'T [] t)) types
 
@@ -547,7 +549,7 @@ con'to'goal (Constructor c'name types) = do
   return $! (rigids, App (C c'name) terms)
 
 
-justifies :: Justification -> Formula -> Check ()
+justifies :: Interact Q m => Justification -> Formula -> Check m ()
 justifies Rule{ kind = rule, on = identifiers } fm = do
   assertions <- mapM id'to'assert identifiers --  TODO: id'to'assertions
   
@@ -699,7 +701,7 @@ justifies (Substitution{ on', using }) fm = do
   --  fm    and `on` can unify under the equivalence
 
 
-check'induction'cases :: [Case] -> Type -> [Constructor] -> (Free, Formula) -> Check ()
+check'induction'cases :: Interact Q m => [Case] -> Type -> [Constructor] -> (Free, Formula) -> Check m ()
 check'induction'cases cases typ to'handle (f, goal) = do
 
   --  For each one of those, find all those cases that match them.
@@ -710,7 +712,7 @@ check'induction'cases cases typ to'handle (f, goal) = do
 
   handle'cases cases to'handle
 
-  where handle'cases :: [Case] -> [Constructor] -> Check ()
+  where handle'cases :: Interact Q m => [Case] -> [Constructor] -> Check m ()
         handle'cases [] [] = return ()
         handle'cases (Case p _ : _) [] = do
           throwError $! Err ("I found a redundant case in the case analysis.\nDrop the case for `" ++ show p ++ "'.")
@@ -733,7 +735,7 @@ check'induction'cases cases typ to'handle (f, goal) = do
               handle'cases not'matching constrs
 
 
-check'induction'case :: (Free, Formula) -> Type -> Constructor -> Case -> Check ()
+check'induction'case :: (Interact Q m) => (Free, Formula) -> Type -> Constructor -> Case -> Check m ()
 check'induction'case (f, goal) typ (Constructor _ types) (Case (c, rs) proof) = do
   --  I need to see if this case is for a base-case
   --  or for the inductive case.
@@ -778,7 +780,7 @@ check'induction'case (f, goal) typ (Constructor _ types) (Case (c, rs) proof) = 
       throwError $! Err "Missing conclusion."
 
 
-check'cases :: [Case] -> [Constructor] -> Formula -> Term -> Check ()
+check'cases :: Interact Q m => [Case] -> [Constructor] -> Formula -> Term -> Check m ()
 check'cases cases constructors formula subject = do
 
   --  First filter the constructors.
@@ -793,7 +795,7 @@ check'cases cases constructors formula subject = do
 
   handle'cases cases to'handle
 
-  where handle'cases :: [Case] -> [Constructor] -> Check ()
+  where handle'cases :: Interact Q m => [Case] -> [Constructor] -> Check m ()
         handle'cases [] [] = return ()
         handle'cases (Case p _ : _) [] = do
           throwError $! Err ("I found a redundant case in the case analysis.\nDrop the case for `" ++ show p ++ "'.")
@@ -816,7 +818,7 @@ check'cases cases constructors formula subject = do
               handle'cases not'matching constrs
 
 
-matches :: Case -> Constructor -> Check Bool
+matches :: Monad m => Case -> Constructor -> Check m Bool
 matches (Case (con, rigids) _) constr = do
   --  the case's pattern must be the most general possible
   --  the variables in the case are rigid variables
@@ -850,7 +852,7 @@ matches (Case (con, rigids) _) constr = do
       (return False)
 
 
-con'to'pat :: Constructor -> Check Term
+con'to'pat :: Monad m => Constructor -> Check m Term
 con'to'pat (Constructor c'name types) = do
   fresh'and'typed <- mapM (\ t -> fresh'name >>= \ n -> return (n, Forall'T [] t)) types
 
@@ -871,7 +873,7 @@ con'to'pat (Constructor c'name types) = do
   return $! App (C c'name) terms
 
 
-unifiable :: Term -> Term -> Check Bool
+unifiable :: Monad m => Term -> Term -> Check m Bool
 unifiable left right = do
   subst <- get'subst
   tc <- gets typing'ctx
@@ -882,7 +884,7 @@ unifiable left right = do
 
 
 
-check'case :: Formula -> Term -> Constructor -> Case -> Check ()
+check'case :: Interact Q m => Formula -> Term -> Constructor -> Case -> Check m ()
 check'case goal subject constructor (Case (c, rs) proof) = do
 
   let pat'term = App c (map (\ r -> Var (Rigid r)) rs)
@@ -934,12 +936,12 @@ check'case goal subject constructor (Case (c, rs) proof) = do
       throwError $! Err "Missing conclusion."
 
 
-match'mgu :: Term -> Term -> Check Substitution
+match'mgu :: Monad m => Term -> Term -> Check m Substitution
 match'mgu p (Var (Rigid (R s))) = return [Rigid'2'Term (R s) p]
 match'mgu p t = p `mgu` t --  TODO: this is obviously terrible idea, but might work for now
 
 
-id'to'assert :: String -> Check Assertion
+id'to'assert :: Monad m => String -> Check m Assertion
 id'to'assert identifier = do
   scope <- asks assert'scope
   case Map.lookup identifier scope of

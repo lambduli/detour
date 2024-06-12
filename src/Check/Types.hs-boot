@@ -6,4 +6,4 @@ import Syntax.Type ( Type'Scheme(..), Type(..) )
 import {-# SOURCE #-} Check.Check ( Check )
 
 
-instantiate'scheme :: Type'Scheme -> Check Type
+instantiate'scheme :: Monad m => Type'Scheme -> Check m Type

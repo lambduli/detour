@@ -1,9 +1,10 @@
 module Check.Check where
 
 
-import Control.Monad.Reader ( ReaderT, asks )
-import Control.Monad.State ( MonadState(get, put), gets, StateT )
-import Control.Monad.Except ( Except, throwError, withError )
+-- import Control.Monad.Reader ( ReaderT, asks )
+-- import Control.Monad.State ( MonadState(get, put), gets, StateT )
+-- import Control.Monad.Except ( Except, throwError, withError )
+import Control.Monad.InteractT
 
 import Data.Map.Strict qualified as Map
 
@@ -20,36 +21,70 @@ import Check.Constraint ( Constraint(..) )
 import {-# SOURCE #-} Check.Types ( instantiate'scheme )
 
 
-type Check a
-  = ReaderT
-      Environment
-      (StateT
-        State
-        (Except Error))
-      a
+-- type Check a
+--   = ReaderT
+--       Environment
+--       (StateT
+--         State
+--         (Except Error))
+--       a
+
+
+type Check m a = InteractT Environment State Error m a
+
+
+
+data Context = Context { goal :: Formula }
+  deriving (Show)
+
+
+data Q a where
+  What'Next :: Context -> Q Command
+
+
+instance Show (Q a) where
+  show (What'Next ctx) = show ctx
+
+
+data Command = IDK
+  deriving (Show)
+
+newtype Number = Number Int
+  deriving (Show)
+
+
+instance Interact Q IO where
+  request :: Q r -> IO r
+
+  request (What'Next Context{ goal }) = do
+    putStrLn $! "Goal: " ++ show goal
+    _ <- getLine
+    return IDK
+
+
 
 
 withError' m e = withError (const e) m
 
 
-because :: String -> Check a -> Check a
+because :: Monad m => String -> Check m a -> Check m a
 because msg m = withError (\ (Err msg') -> (Err (msg ++ "\nand " ++ msg'))) m
 
 
-fresh'name :: Check String
+fresh'name :: Monad m => Check m String
 fresh'name = do
   s@State{ counter } <- get
   put s{ counter = counter + 1 }
   return $! "_" ++ show counter
 
 
-fresh'proposition :: Check Formula
+fresh'proposition :: Monad m => Check m Formula
 fresh'proposition = do
   name <- fresh'name
   return $! Atom (Meta'Rel (Prop'Var name))
 
 
-fresh'free :: Check Free
+fresh'free :: Monad m => Check m Free
 fresh'free = do
   n <- fresh'name
 
@@ -62,14 +97,14 @@ fresh'free = do
   return (F n)
 
 
-fresh'constant :: Level -> Check Constant
+fresh'constant :: Monad m => Level -> Check m Constant
 fresh'constant l = do
   name <- fresh'name
 
   return (C name)
 
 
-free'level :: Free -> Check Int
+free'level :: Monad m => Free -> Check m Int
 free'level f = do
   free'depths <- gets free'depth'context
   case Map.lookup f free'depths of
@@ -79,7 +114,7 @@ free'level f = do
     Just l -> return l
 
 
-rigid'level :: Rigid -> Check Int
+rigid'level :: Monad m => Rigid -> Check m Int
 rigid'level r = do
   rigid'depths <- gets rigid'depth'context
   case Map.lookup r rigid'depths of
@@ -89,21 +124,21 @@ rigid'level r = do
     Just l -> return l
 
 
-fresh'bound :: Check Bound
+fresh'bound :: Monad m => Check m Bound
 fresh'bound = do
   n <- fresh'name
 
   return (B n)
 
 
-fresh'type :: Check Type
+fresh'type :: Monad m => Check m Type
 fresh'type = do
   n <- fresh'name
 
   return (Type'Var n)
 
 
-fresh'type'const :: Check Type
+fresh'type'const :: Monad m => Check m Type
 fresh'type'const = do
   n <- fresh'name
 
@@ -111,43 +146,43 @@ fresh'type'const = do
 
 
 class Collect a where
-  collect :: Constraint a -> Check ()
+  collect :: Monad m => Constraint a -> Check m ()
 
 
 instance Collect Term where
-  collect :: Constraint Term -> Check ()
+  collect :: Monad m => Constraint Term -> Check m ()
   collect constraint = do
     s@State{ term'constraints } <- get
     put s{ term'constraints = constraint : term'constraints}
 
 
 instance Collect Formula where
-  collect :: Constraint Formula -> Check ()
+  collect :: Monad m => Constraint Formula -> Check m ()
   collect constraint = do
     s@State{ formula'constraints } <- get
     put s{ formula'constraints = constraint : formula'constraints}
 
 
 instance Collect Type where
-  collect :: Constraint Type -> Check ()
+  collect :: Monad m => Constraint Type -> Check m ()
   collect constraint = do
     s@State{ type'constraints } <- get
     put s{ type'constraints = constraint : type'constraints }
 
 
-look'up'theorem :: String -> Check Theorem
+look'up'theorem :: Monad m => String -> Check m Theorem
 look'up'theorem name = do
   thms <- asks theorems
 
   case Map.lookup name thms of
     Nothing -> do
       throwError $! Err ("Unknown theorem `" ++ name ++ "'.")
-    
+
     Just thm -> do
       return thm
 
 
-look'up'type :: String -> Check Type
+look'up'type :: Monad m => String -> Check m Type
 look'up'type name = do
   t'ctx <- gets typing'ctx
 
@@ -159,7 +194,7 @@ look'up'type name = do
       return t
 
 
-type'of :: Term -> Check Type
+type'of :: Monad m => Term -> Check m Type
 type'of (Var v) = do
   t'ctx <- gets typing'ctx
   let s = case v of
@@ -198,7 +233,7 @@ type'of (App (C s) args) = do
       t <- instantiate'scheme ts
       unify'args args t
 
-  where unify'args :: [Term] -> Type -> Check Type
+  where unify'args :: Monad m => [Term] -> Type -> Check m Type
         unify'args [] t = return t
         unify'args (t : ts) ty = do
           t't <- type'of t

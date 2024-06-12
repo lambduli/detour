@@ -3,7 +3,8 @@ module Check.Unify where
 
 -- import Control.Monad.Reader ( ReaderT, asks, local )
 -- import Control.Monad.State ( MonadState(get, put), gets )
-import Control.Monad.Except ( throwError )
+-- import Control.Monad.Except ( throwError )
+import Control.Monad.InteractT
 
 
 import Syntax.Formula ( Formula )
@@ -20,7 +21,7 @@ import Check.Solver ( solve )
 
 
 class Unify a b where
-  unify :: a -> b -> Check ()
+  unify :: Monad m => a -> b -> Check m ()
 
 
 instance Unify Term Term where

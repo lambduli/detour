@@ -5,12 +5,13 @@ import Data.Set qualified as Set
 import Data.Map.Strict qualified as Map
 import Data.List qualified as List
 
-import Control.Monad.Reader ( asks )
-import Control.Monad.State ( MonadState(get, put), gets )
-import Control.Monad.Except ( throwError )
+-- import Control.Monad.Reader ( asks )
+-- import Control.Monad.State ( MonadState(get, put), gets )
+-- import Control.Monad.Except ( throwError )
+import Control.Monad.InteractT
 
 import Check.Error ( Error(..) )
-import Check.Check ( fresh'constant, Check, fresh'type, fresh'name )
+import Check.Check ( fresh'constant, Check, fresh'type, fresh'name, Q )
 import Check.Environment ( Environment(..) )
 import Check.State ( State(..), Level(..) )
 import Check.Vars ( Vars(free) )
@@ -56,7 +57,7 @@ import Data.List.Extra ( intercalate )
     | cond : A
     |------------------------------------
     | ...                                   -}
-check'theorem :: Theorem -> Check ()
+check'theorem :: Interact Q m => Theorem -> Check m ()
 check'theorem T.Theorem { T.name
                         , prop'vars
                         , assumptions = formulae
@@ -153,7 +154,7 @@ check'theorem T.Theorem { T.name
 
 
 --  TODO: better name for the function
-check'conclusion :: Judgment -> Formula -> Check ()
+check'conclusion :: Monad m => Judgment -> Formula -> Check m ()
 check'conclusion c@(J.Claim (C.Claim { formula })) fm = do
   formula `unify` fm
   --  TODO: Later, I can have something like this:
