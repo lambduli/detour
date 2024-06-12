@@ -1,0 +1,242 @@
+module ℕ
+
+
+aliases : 2 = Suc(Suc(Zero))
+        , 3 = Suc(Suc(Suc(Zero)))
+        , 5 = Suc(Suc(Suc(Suc(Suc(Zero)))))
+
+
+syntax ℕ  = Zero    --  Zero : ℕ
+          | Suc(ℕ)  --  Suc  : ℕ -> ℕ
+
+
+judgment sum = Sum(ℕ, ℕ, ℕ)
+
+rule schema sum-zero for all objects (n : ℕ) :
+|
+|-------------------------------------- sum-zero
+| Sum(Zero, n, n)
+
+
+rule schema sum-suc for all objects (m : ℕ), (n : ℕ), (o : ℕ) :
+| Sum(m, n, o)
+|-------------------------------------- sum-suc
+| Sum(Suc(m), n, Suc(o))
+
+
+
+
+theorem n+0=n : ∀ (N : ℕ) : Sum(N, Zero, N)
+prove ∀ (N : ℕ) : Sum(N, Zero, N)
+
+
+-- case split on N:
+--   Zero -> Sum(Zero, Zero, Zero)
+--     search for a matching constructor/theorem/judgment
+--     find sum-zero
+--     ∎
+--   Suc (M : ℕ) -> Sum(Suc(M), Zero, Suc(M))
+--     search for a matching constructor
+--     find and apply sum-suc
+--     new goal is Sum(M, Zero, M) ; that's like the original statement/goal
+--                                 ; we could use the induction hypothesis
+--                                 ; so when we search for a way to prove the goal, we have already included in the bag of justifications the induction hypothesis for M
+--     search for a matching constructor/theorem/judgment
+--     find the induction hypothesis in the set of judgments and apply it
+--     ∎
+
+
+
+
+
+theorem N+M=N : ∃ (N : ℕ) : ∀ (M : ℕ) : Sum(N, M, N)
+prove ∃ (N : ℕ) : ∀ (M : ℕ) : Sum(N, M, N)
+
+
+theorem M+N=N : ∃ (N : ℕ) : ∀ (M : ℕ) : Sum(M, N, N)
+prove ∃ (N : ℕ) : ∀ (M : ℕ) : Sum(M, N, N)
+
+
+theorem M+N=M : ∃ (N : ℕ) : ∀ (M : ℕ) : Sum(M, N, M)
+prove ∃ (N : ℕ) : ∀ (M : ℕ) : Sum(M, N, M)
+
+
+
+
+theorem total : ∀ (N : ℕ) (M : ℕ) : ∃ (O : ℕ) : Sum(N, M, O)
+prove ∀ (N : ℕ) (M : ℕ) : ∃ (O : ℕ) : Sum(N, M, O)
+
+
+
+
+-- What I want this to do is, instantiate the variable N
+-- and get a formula like Sum( N!? , Zero , N!? )
+-- Then I try to prove this.
+-- 
+-- Since it's an atom, I see how I can prove this particular proposition.
+-- There are certain constructors.
+-- 
+-- There's only one thing.
+-- I don't really want to do case split on the prove of the judgment.
+-- What I mean is, I don't really want to use those to constructors/rules sum-zero and sum-suc.
+-- Instead, it's about doing case split on the N?!.
+-- 
+-- So maybe I can think like this:
+-- When I need to instantiate the N to something, I case split right away.
+-- So I am proving two things.
+-- One is    Sum( Zero , Zero , Zero )
+-- and the other is    Sum( Suc(n!?) , Zero , Suc(n!?) )
+-- 
+-- Proving the first one is simple. It is matched by exactly one constructor sum-zero.
+-- The other one is matched by exactly one — sum-suc.
+-- 
+-- From here, it's somewhat more straightforward.
+-- The first case, we have proven. We are done.
+-- The second case, we have to prove   Sum(n!?, Zero, n!?)  where n!? : ℕ.
+-- This is a situation in which we already were.
+-- 
+-- We can either attempt the inductive reasoning, or we can rely on the programmer to do that.
+-- It could be that the next thing the tool does it prints something like:
+-- ... we do case split on the N
+-- and we have to deal with two options
+-- we start with the first one where N = Zero
+-- this leads to sum-zero being used and we are done.
+-- 
+-- So the user would be expected to change the code a bit, like this:
+-- 
+-- theorem n+0 : ∀ (N : ℕ) : Sum(N, Zero, N)
+-- prove ∀ (N : ℕ) : Sum(N, Zero, N)  by case analysis
+
+
+
+
+theorem sum-uniq-commutes : ∀ (n1 : ℕ) (n2 : ℕ) : ∃ (n3 : ℕ) : Sum(n1, n2, n3) ∧ Sum(n2, n1, n3)
+prove ∀ (n1 : ℕ) (n2 : ℕ) : ∃ (n3 : ℕ) : Sum(n1, n2, n3) ∧ Sum(n2, n1, n3)
+
+
+-- ∀ (n1 : ℕ) (n2 : ℕ) : ∃ (n3 : ℕ) : Sum(n1, n2, n3) ∧ Sum(n2, n1, n3)
+-- 
+-- n1 = zero
+--   n2 = zero
+--     Sum(zero, zero, n3?) ∧ Sum(zero, zero, n3?)
+--     --  obe pres sum-zero
+-- 
+--   n2 = suc n'
+--     Sum(zero, suc n', n3?) ∧ Sum(suc n', zero, n3?)
+--     -- prvni pres sum-zero
+--     -- a to mi da ze n3? = suc n'
+--     -- druhy pres sum-suc
+--     -- to vyzaduje dokazat Sum(n', zero, n')
+-- 
+-- 
+-- n1 = suc n''
+--   n2 = zero
+--     Sum(suc n'', zero, n3?) ∧ Sum(zero, suc n'', n3?)
+--     -- to druhy pres sum-zero
+--     -- a zase n3? = suc n''
+-- 
+--     -- to prvni pres sum-suc
+--     -- a to vyzaduje Sum(n'', zero, n'')
+-- 
+--   n2 = suc n'''
+--     Sum(suc n'', suc n''', n3?) ∧ Sum(suc n''', suc n'', n3?)
+--     -- tady jde pouzit indukcni hyp.
+--     -- indukce na prvni argumentu
+--     -- dostanu
+--     -- Sum(n'', suc n''', n4?) ∧ Sum(suc n''', n'', n4?)
+--     -- aplikuju na prvni sum-suc pravidlo
+--     -- Sum(suc n'', suc n''', suc n4)
+--     -- a to je ok
+-- 
+--     -- druha strana vede na jednoduchy teorem
+--     -- tim je ok
+
+
+
+
+-- kdybych mel indukcni hyp.
+-- ∀ (n1 : ℕ) : [∀ (n2 : ℕ) : ∃ (n3 : ℕ) : Sum(n1, n2, n3) ∧ Sum(n2, n1, n3)]
+
+
+
+
+-- pripadne preformulovat jako
+-- pro vsechny n3 plati ... iff prvni tak druha cast
+
+
+
+
+
+
+
+
+--
+--  prove sum Sum(N?!, Zero, N?!)
+--  
+--  Both constructors match.
+--  FIRST sum-zero
+--  
+--  |
+--  |-------------------------------------- sum-zero
+--  | Sum(Zero, N?, Zero)
+--  
+--  where N? is Zero
+--  - For this constr. to match. We need to check that N? unifies with Zero. (And unify it with it.)
+--  
+--  Then we succeed.
+--  
+--  
+--  
+--  SECOND sum-suc
+--  
+--  | Sum(m, n, o)
+--  |-------------------------------------- sum-suc
+--  | Sum(Suc(m), n, Suc(o))
+--  
+--  where N? = Suc(m)
+--        n = Zero
+--        N? = Suc(o)
+--  
+--  The new goal is Sum(m, n, o).
+--  The fact that n = Zero might still be hidden now.
+--  
+--  The goal is now tried.
+--  This means that we have to ask for values of m, n, o.
+--  
+--        
+
+
+
+
+-- theorem 2+3=5 : Sum(2, 3, 5)
+-- prove Sum(2, 3, 5)
+--  this should start with something like Sum( a? , b? , c? )
+--  it should then try to match that goal using all of the rules of sum
+--
+--  it tries sum-suc:
+--    | Sum(m, n, o)
+--    |-------------------------------------- sum-suc
+--    | Sum(Suc(m), n, Suc(o))
+--
+--  Suc(m) is unified with a?
+--  this succeeds, because a? is actually 2
+--
+--  Suc(o) is unified with c?
+--  this succeeds, because c? is actually 5
+--
+--  The new goal is now Sum( m? , b? , o? )
+--  which is actually Sum( 1 , b? , 4 )
+--
+--
+--  This goes on and on. Until we get a goal Sum( Zero, 3 , 3 )
+--  This goal succeeds through sum-zero
+--  
+--
+--
+--  it tries sum-zero:
+--    |
+--    |-------------------------------------- sum-zero
+--    | Sum(Zero, n, n)
+--
+--  
+

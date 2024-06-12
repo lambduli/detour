@@ -11,6 +11,7 @@ import {-# SOURCE #-} Syntax.Proof ( Proof )
 data Judgment = Sub'Proof Proof
               | Claim Claim
               | Alias String Formula
+              | Prove Formula
   deriving (Eq)
 
 
@@ -18,3 +19,4 @@ instance Show Judgment where
   show (Sub'Proof proof) = show proof
   show (Claim claim) = show claim
   show (Alias name formula) = name ++ " := " ++ show formula
+  show (Prove fm) = "prove " ++ show fm

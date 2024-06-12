@@ -5,12 +5,13 @@ import Data.Set qualified as Set
 import Data.Map.Strict qualified as Map
 import Data.List qualified as List
 
-import Control.Monad.Reader ( asks )
-import Control.Monad.State ( MonadState(get, put), gets )
-import Control.Monad.Except ( throwError )
+-- import Control.Monad.Reader ( asks )
+-- import Control.Monad.State ( MonadState(get, put), gets )
+-- import Control.Monad.Except ( throwError )
+import Control.Monad.InteractT
 
 import Check.Error ( Error(..) )
-import Check.Check ( fresh'constant, Check, fresh'type )
+import Check.Check ( fresh'constant, Check, fresh'type, fresh'name, Q )
 import Check.Environment ( Environment(..) )
 import Check.State ( State(..), Level(..) )
 import Check.Vars ( Vars(free) )
@@ -19,6 +20,8 @@ import Check.Proof  ( check'all
                     , collect'free'vars'in'formula
                     , collect'free'vars'in'judgment )
 import Check.Solver ( solve )
+import Check.Substitution
+import Check.Substitute
 
 import Syntax.Formula ( Formula(..) )
 import Syntax.Term ( Free, Free(..) )
@@ -31,6 +34,7 @@ import Syntax.Assumption ( Assumption(..) )
 import Syntax.Claim ( Claim(..) )
 import Syntax.Claim qualified as C
 import Syntax.Type ( Type'Scheme(..) )
+import Syntax.Relation ( Prop'Var(Prop'Var), Relation(Rel, Meta'Rel), Rel'Args(..) )
 
 import Data.List.Extra ( intercalate )
 
@@ -53,11 +57,27 @@ import Data.List.Extra ( intercalate )
     | cond : A
     |------------------------------------
     | ...                                   -}
-check'theorem :: Theorem -> Check ()
+check'theorem :: Interact Q m => Theorem -> Check m ()
 check'theorem T.Theorem { T.name
+                        , prop'vars
                         , assumptions = formulae
                         , conclusion
                         , proof = derivations } = do
+
+  --  I need to instantiate all the prop'vars to some unique propositions.
+  --  It doesn't matter what they will be, they just must not be meta-rels.
+
+  --  this should be enough
+  --  I should be able to do this, because each theorem is checked in isolation
+  --  NOTE: The reason why the "rigid" relation is over terms and not over formulae is because those abstracted-over relations are supposed to be first-order
+  mapM_ (\ s -> do { n <- fresh'name ; Atom (Meta'Rel (Prop'Var s)) `unify` Atom (Rel n (RL'Terms [])) }) prop'vars
+  -- old'new <- mapM (\ s -> do { n <- fresh'name ; return (s, n) }) prop'vars
+  -- let subs = concatMap (\ (o, n) -> Prop'Var o ==> Atom (Rel n [])) old'new
+  -- let formulae' = apply subs formulae
+  -- let conclusion' = apply subs conclusion
+  -- let derivations' = apply subs derivations
+
+
   --  I need to traverse the proof (List of Derivations).
   --  The traversing function might succeed and return the last derivation.
   --  That can be a sub-proof too.
@@ -121,6 +141,9 @@ check'theorem T.Theorem { T.name
     Just (_, c@(J.Claim _)) -> do
       check'conclusion c conclusion
 
+    Just (_, c@(J.Prove _)) -> do
+      check'conclusion c conclusion
+
     Just (_, Alias _ _) -> do
       throwError $! Err "The last judgment of a theorem needs to be a claim or a proof, not an alias."
 
@@ -131,7 +154,7 @@ check'theorem T.Theorem { T.name
 
 
 --  TODO: better name for the function
-check'conclusion :: Judgment -> Formula -> Check ()
+check'conclusion :: Monad m => Judgment -> Formula -> Check m ()
 check'conclusion c@(J.Claim (C.Claim { formula })) fm = do
   formula `unify` fm
   --  TODO: Later, I can have something like this:
@@ -146,6 +169,9 @@ check'conclusion c@(J.Claim (C.Claim { formula })) fm = do
 
   --  It does the "failure recovery" so that it can change the value of the error if it fails.
   --  If it doesn't fail, it does nothing.
+
+check'conclusion c@(J.Prove formula) fm = do
+  formula `unify` fm
 
 check'conclusion der fm = do
   throwError $! Err "Wrong conclusion."

@@ -6,9 +6,10 @@ import Data.List qualified as List
 import Data.Maybe ( isJust )
 
 -- import Control.Monad ( when, unless )
-import Control.Monad.Reader ( ask, asks, local )
-import Control.Monad.State ( MonadState(get, put), gets )
-import Control.Monad.Except ( throwError, catchError )
+-- import Control.Monad.Reader ( ask, asks, local )
+-- import Control.Monad.State ( MonadState(get, put), gets )
+-- import Control.Monad.Except ( throwError, catchError )
+import Control.Monad.InteractT
 import Control.Monad.Extra ( unless )
 
 import Check.Error ( Error(..) )
@@ -42,7 +43,7 @@ import Syntax.Jud qualified as J
 -- import Syntax.Claim qualified as C
 
 
-check'rule :: Rule -> [Assertion] -> Formula -> Check ()
+check'rule :: Monad m => Rule -> [Assertion] -> Formula -> Check m ()
 {-  d : | p1 : _A
         | p2 : _B
         |-------------------
@@ -444,11 +445,14 @@ check'rule Repetition _ _ = do
   throwError $! Err "I saw wrong number or shapes of arguments to the rule `repetition'."
 
 check'rule (Custom name) assertions formula = do
-  J.Rule _ typings premises conclusion <- find'rule name
+  J.Rule _ prop'vars typings premises conclusion <- find'rule name
 
   triples <- mapM (\ (n, t) -> do { v <- fresh'free ; return (n, v, t) }) typings
+  pairs <- mapM (\ n -> do { p <- fresh'name ; return (n, p) }) prop'vars
 
-  let sub = concatMap (\ (old, new, _) -> F old ==> Var (Free new)) triples
+  let sub'1 = concatMap (\ (old, new, _) -> F old ==> Var (Free new)) triples
+  let sub'2 = concatMap (\ (old, new) -> Prop'Var old ==> Atom (Meta'Rel (Prop'Var new))) pairs
+  let sub = sub'1 ++ sub'2
 
   let premises' = apply sub premises
   let conclusion' = apply sub conclusion
@@ -464,28 +468,28 @@ check'rule rule assertions formula = do
   throwError $! Err "This is a wrong justification."
 
 
-find'rule :: String -> Check J.Rule
+find'rule :: Monad m => String -> Check m J.Rule
 find'rule name = do
   juds <- gets judgments
-  case List.find (\ (J.Jud _ _ rules) -> isJust $! List.find (\ (J.Rule n _ _ _) -> name == n) rules) juds of
+  case List.find (\ (J.Jud _ _ _ rules) -> isJust $! List.find (\ (J.Rule n _ _ _ _) -> name == n) rules) juds of
     Nothing -> do
       throwError $! Err ("I don't know the rule named `" ++ name ++ "'.")
 
-    Just (J.Jud _ _ rules) -> do
-      case List.find (\ (J.Rule n _ _ _) -> name == n) rules of
+    Just (J.Jud _ _ _ rules) -> do
+      case List.find (\ (J.Rule n _ _ _ _) -> name == n) rules of
         Nothing -> error "internal error: this should never happen"
 
         Just rule -> do
           return rule
 
 
-instantiate :: Formula -> [(Rigid, Type'Scheme)] -> Check Formula
+instantiate :: Monad m => Formula -> [(Rigid, Type'Scheme)] -> Check m Formula
 instantiate e@(Exists _ _) bs = instantiate'exist'to e bs
 instantiate u@(Forall _ _) bs = instantiate'universal'to u bs
 instantiate f _ = throwError $! Err ("I was trying to instantiate the formula `" ++ show f ++ "' but it isn't a quantified formula.")
 
 
-instantiate'exist'to :: Formula -> [(Rigid, Type'Scheme)] -> Check Formula
+instantiate'exist'to :: Monad m => Formula -> [(Rigid, Type'Scheme)] -> Check m Formula
 instantiate'exist'to fm [] = do
   return fm
 
@@ -500,7 +504,7 @@ instantiate'exist'to fm _ = do
   throwError $! Err ("Instantiation error. The `" ++ show fm ++ "' is not an existentially quantified formula and there are some instantiation-arguments (terms) left.")
 
 
-instantiate'universal'to :: Formula -> [(Rigid, Type'Scheme)] -> Check Formula
+instantiate'universal'to :: Monad m => Formula -> [(Rigid, Type'Scheme)] -> Check m Formula
 instantiate'universal'to fm [] = do
   return fm
 
@@ -515,7 +519,7 @@ instantiate'universal'to fm _ = do
   throwError $! Err ("Instantiation error. The `" ++ show fm ++ "' is not an existentially quantified formula and there are some instantiation-arguments (terms) left.")
 
 
-unify'with'instance :: Formula -> Formula -> Check ()
+unify'with'instance :: Monad m => Formula -> Formula -> Check m ()
 unify'with'instance existential@(Exists _ _) instantiation = do
   --  Any of the terms in the instantiation can be abstracted away.
   --  I just decompose and the prefix from the existential gets substituted
@@ -555,7 +559,7 @@ unify'with'instance existential@(Exists _ _) instantiation = do
   because ("I was trying to unify \n  `" ++ show existential ++ "'\nwith its supposed instance \n  `" ++ show instantiation ++ "'\nI instantiated the existential to\n  `" ++ show formula ++ "'.")
           (formula `unify` instantiation)
 
-  where decompose :: Formula -> Check ([(String, Type'Scheme)], Formula)
+  where decompose :: Monad m => Formula -> Check m ([(String, Type'Scheme)], Formula)
         decompose (Exists x fm) = do
           (binders, body) <- decompose fm
           return (x : binders, body)
@@ -604,7 +608,7 @@ unify'with'instance universal@(Forall _ _) instantiation = do
   because ("I was trying to unify \n  `" ++ show formula ++ "' () with its supposed instance \n  `" ++ show instantiation ++ "'.")
           (formula `unify` instantiation)
 
-  where decompose :: Formula -> Check ([(String, Type'Scheme)], Formula)
+  where decompose :: Monad m => Formula -> Check m ([(String, Type'Scheme)], Formula)
         decompose (Forall x fm) = do
           (binders, body) <- decompose fm
           return (x : binders, body)
@@ -616,7 +620,7 @@ unify'with'instance general instantiation = do
   throwError $! Err ("The formula `" ++ show general ++ "' is not a quantified formula so that it can be instantiated to `" ++ show instantiation ++ "'.")
 
 
-check'impl'intro :: Assertion -> Formula -> Check ()
+check'impl'intro :: Monad m => Assertion -> Formula -> Check m ()
 check'impl'intro (Derived (Formula assumps) last) impl = do
   let formulae = map snd assumps
 

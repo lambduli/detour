@@ -86,6 +86,36 @@ A theorem is a statement followed by its proof.
 theorem total : ∀ (n₁ : ℕ) (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( n₁ , n₂ , n₃ )
 ```
 
+#### Second-order Theorems
+We can have theorems parametrized by propositions.
+Here is an example:
+
+```
+theorem schema modus-ponens for all propositions P, K : P ==> K
+                                                      , P
+                                                      ⊢ K
+
+| p->k : P ==> K
+| p : P
+|--------------------
+|
+| K  by rule ==>-elim on p->k, p
+```
+
+We can then use this theorem as normal.
+
+```
+theorem use-modus-ponens : A ==> B , A ⊢ B
+
+| a->b : A ==> B
+| a : A
+|-------------------
+|
+| B  by theorem modus-ponens on a->b, a
+```
+
+> Note the difference! `P` and `K` are parameters so they are not actual propositional constants whereas `A` and `B` are understood as specific propositions.
+
 
 ### Proofs
 Proofs are the most visually involved part. You start by writing the vertical and horizontal lines:
@@ -130,6 +160,17 @@ You can use whatever names you want. Almost all characters are allowed except so
 See the [`./examples`](./examples) directory for a few examples.
 
 
+## Automated Proving
+The tool now supports a somewhat automated proof search.
+The goal is to focus on very interactive proving. It is not a goal to build a powerful automated theorem prover.
+However, with the correct use of tactics (in the future) it maybe could be.
+
+The theorem `total` from above now can be proved trivially:
+
+```
+theorem total : ∀ (N : ℕ) (M : ℕ) : ∃ (O : ℕ) : Sum(N, M, O)
+prove ∀ (N : ℕ) (M : ℕ) : ∃ (O : ℕ) : Sum(N, M, O)
+```
 
 ------
 ------
@@ -137,7 +178,7 @@ See the [`./examples`](./examples) directory for a few examples.
 
 ## TODO:
 - [x] remove the substitution `Const2Term`
-- [ ] maybe have a special kind of term like `Rigid` variable? I don't remember for what, though.
+- [x] maybe have a special kind of term like `Rigid` variable? I don't remember for what, though.
 
 
 ## TODO:
@@ -174,8 +215,15 @@ See the [`./examples`](./examples) directory for a few examples.
   - [x] typing for terms
   - [x] type unification
 
+- [ ] automated proving
+  - [ ] all connectives
+  - [ ] quantified formulae
+  - [x] induction
+  - [x] using theorems
+  - [x] using local assertions
+
 - [ ] second-order features
-  - [ ] theorem schemata
+  - [x] theorem schemata
   - [ ] rule and judgment schemata over propositions
 
 - [ ] ~~REPL~~

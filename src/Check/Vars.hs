@@ -9,7 +9,7 @@ import Data.Foldable ( foldl' )
 import Syntax.Term ( Term(..), Var(..), Free(..), Rigid(..), Constant )
 import Syntax.Formula ( Formula(Exists, Atom, Not, And, Or, Impl, Eq, Forall) )
 import Syntax.Formula qualified as F
-import Syntax.Relation ( Relation(..) )
+import Syntax.Relation ( Relation(..), Rel'Args(..) )
 import Syntax.Judgment
 import Syntax.Claim qualified as C
 import Syntax.Justification
@@ -38,17 +38,8 @@ instance Vars Free Term where
   free (Var v) = free v
 
 
--- instance Vars Constant Term where
---   free :: Term -> Set.Set Constant
---   free (Bound _) = Set.empty
-
---   free (App c terms) = foldl' (\ s t -> s `Set.union` free t) (Set.singleton c) terms
-
---   free (Free _) = Set.empty
-
-
-instance (Vars a Term, Ord a) => Vars a Formula where
-  free :: Formula -> Set.Set a
+instance Vars Free Formula where
+  free :: Formula -> Set.Set Free
   free F.True = Set.empty
   
   free F.False = Set.empty
@@ -70,14 +61,20 @@ instance (Vars a Term, Ord a) => Vars a Formula where
   free (Exists _ fm) = free fm
 
 
-instance (Vars a Term, Ord a) => Vars a Relation where
-  free :: Relation -> Set.Set a
-  free (Rel _ terms) = free terms
+instance Vars Free Relation where
+  free :: Relation -> Set.Set Free
+  free (Rel _ rel'args) = free rel'args
   
   free (Meta'Rel _) = Set.empty
 
 
-instance (Vars a Formula, Vars a Proof, Vars a Justification, Vars a Term, Ord a) => Vars a C.Claim where
+instance Vars Free Rel'Args where
+  free :: Rel'Args -> Set.Set Free
+  free (RL'Terms terms) = free terms
+  free (RL'Formulae fms) = free fms
+
+
+instance Vars Free C.Claim where
   free C.Claim{ C.formula, C.justification } = free formula `Set.union` free justification
 
 
@@ -123,6 +120,7 @@ instance Vars Free Judgment where
   free (Sub'Proof proof) = free proof
   free (Claim claim) = free claim
   free (Alias _ fm) = free fm
+  free (Prove fm) = free fm
 
 
 -- instance Vars Constant Judgment where
@@ -140,5 +138,5 @@ instance Vars Free Case where
 
 
 
-instance (Ord v, Vars v a) => Vars v [a] where
+instance Vars Free a => Vars Free [a] where
   free = foldl' (\ s a -> s `Set.union` free a) Set.empty

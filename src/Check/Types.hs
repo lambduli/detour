@@ -8,7 +8,7 @@ import Check.Substitute
 import Check.Substitution
 
 
-instantiate'scheme :: Type'Scheme -> Check Type
+instantiate'scheme :: Monad m => Type'Scheme -> Check m Type
 instantiate'scheme (Forall'T vars ty) = do
   mappings <- mapM (\ s -> do { t <- fresh'type ; return (s, t) } ) vars
   let subst = map (\ (s, t) -> Meta'2'Type s t) mappings
@@ -16,13 +16,13 @@ instantiate'scheme (Forall'T vars ty) = do
 
 
 
-instantiate'scheme'at :: Type'Scheme -> [Type] -> Check Type
+instantiate'scheme'at :: Monad m => Type'Scheme -> [Type] -> Check m Type
 instantiate'scheme'at (Forall'T vars ty) types = do
   mappings <- zip'and'fill vars types
   let subst = map (\ (s, t) -> Meta'2'Type s t) mappings
   return $! apply subst ty
 
-  where zip'and'fill :: [String] -> [Type] -> Check [(String, Type)]
+  where zip'and'fill :: Monad m => [String] -> [Type] -> Check m [(String, Type)]
         zip'and'fill [] [] = return []
 
         zip'and'fill (s : ss) [] = do

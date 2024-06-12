@@ -97,6 +97,7 @@ $space+                 ;
   "objects"               { emit Token.Object }
   "proposition"           { emit Token.Proposition }
   "propositions"          { emit Token.Proposition }
+  "prove"                 { emit Token.Prove }
 
   "="                     { emit Token.Equal }
 
@@ -253,6 +254,7 @@ data AlexUserState = AlexUserState{ layouts     :: ![Int]
                                   , constants   :: ![String]
                                   , bound       :: ![[String]]
                                   , rigids      :: ![[String]]
+                                  , p'vars      :: ![String]
                                   , aliases     :: ![(String, Term)]
                                   , counter     :: !Int
                                   , typing'ctx  :: !(Map.Map String Type'Scheme) }
@@ -263,6 +265,7 @@ alexInitUserState = AlexUserState { layouts           = []
                                   , constants         = []
                                   , bound             = []
                                   , rigids            = []
+                                  , p'vars            = []
                                   , aliases           = []
                                   , counter           = 0
                                   , typing'ctx        = Map.empty }

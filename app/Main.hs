@@ -3,9 +3,10 @@ module Main where
 
 import Prelude hiding ( lex )
 
-import Control.Monad.Reader ( runReaderT )
-import Control.Monad.State ( runStateT )
-import Control.Monad.Except ( runExcept )
+-- import Control.Monad.Reader ( runReaderT )
+-- import Control.Monad.State ( runStateT )
+-- import Control.Monad.Except ( runExcept )
+import Control.Monad.InteractT
 
 
 import System.Environment ( getArgs )
@@ -68,11 +69,13 @@ check'file lem file'path = do
       -- putStrLn "\n\nModule printed"
       putStrLn ("Checking module `" ++ M.name mod ++ "'\n")
 
-      case runExcept $ runStateT (runReaderT (check'module mod) (init'env lem)) empty'state of
+      -- case runExcept $ runStateT (runReaderT (check'module mod) (init'env lem)) empty'state of
+      result <- run'interact empty'state (init'env lem) (check'module mod)
+      case result of
         Left err -> do
           putStrLn ("❌ " ++ show err)
 
-        Right (results, state) -> do
+        Right (state, results) -> do
           mapM_ (\case  (name, Just err) -> do { putStrLn ("❌ theorem `" ++ name ++ "' failed because\n" ++ show err) }
                         (name, Nothing)  -> do {putStrLn ("✅ theorem `" ++ name ++ "' checked successfully") } ) results
           

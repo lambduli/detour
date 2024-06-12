@@ -23,7 +23,7 @@ import Syntax.Formula ( Formula(..) )
 import Syntax.Justification ( Justification(..), Rule(..) )
 import Syntax.Module ( Module )
 import Syntax.Proof ( Proof(..) )
-import Syntax.Relation ( Relation(..), Prop'Var(..) )
+import Syntax.Relation ( Relation(..), Prop'Var(..), Rel'Args(..) )
 import Syntax.Term -- ( Term(..), Level(..), pattern Const, pattern Bound'Var )
 import Syntax.Theorem ( Theorem(..) )
 import Syntax.Type ( Type(..), Type'Scheme(..) )
@@ -92,9 +92,8 @@ import Check.Substitute
   'case'          { Token.Case }
   'analysis'      { Token.Analysis }
   'object'        { Token.Object }
-  'objects'       { Token.Object }
   'proposition'   { Token.Proposition }
-  'propositions'  { Token.Proposition }
+  'prove'         { Token.Prove }
   ':='            { Token.Defines }
   ':'             { Token.Colon }
   '⊢'             { Token.Turnstile }
@@ -240,6 +239,10 @@ Constructor ::  { Constructor }
                                                 { s <- alexGetUserState
                                                 ; alexSetUserState s{ A.constants = $1 : A.constants s }
                                                 ; return $! Constructor $1 ($3 : $4) } }
+            |   IDENT '[' Type Types ']'    {% do
+                                                { s <- alexGetUserState
+                                                ; alexSetUserState s{ A.constants = $1 : A.constants s }
+                                                ; return $! Constructor $1 ($3 : $4) } }
 
 
 --  TODO: because of the | meaning two different things, this is a bit broken
@@ -261,7 +264,28 @@ Judgments   ::  { [Jud] }
 Jud         ::  { Jud }
             :   'judgment' IDENT '=' Constructor Rules
                                             { let { Constructor name types = $4 }
-                                              in  Jud $2 (name, types) $5 }
+                                              in  Jud $2 [] (name, types) $5 }
+            |   'judgment' 'schema' IDENT ForProps '=' Constructor Rules
+                                            { let { Constructor name types = $6 }
+                                              in  Jud $3 $4 (name, types) $7 }
+
+
+ForProps    ::  { [String] }
+            :   'for' 'all' 'proposition' Props
+                                            { $4 }
+            |   {- empty -}                 { [] }
+
+
+Props       ::  { [String] }
+            :   PropsAux                    {% do
+                                                { s <- alexGetUserState
+                                                ; alexSetUserState s{ p'vars = $1 }
+                                                ; return $1 } }
+
+
+PropsAux    ::  { [String] }
+            :   PropVar                     { [$1] }
+            |   PropVar ',' PropsAux        { $1 : $3 }
 
 
 Rules       ::  { [Jud.Rule] }
@@ -274,13 +298,27 @@ Rule        ::  { Jud.Rule }
                                             {% do
                                                 { unless  ($2 == $7)
                                                           (report'error ("A rule should have the same name as in declaration.\nThe rule `" ++ $2 ++ "' has also been given a name `" ++ $7 ++ "'.\nPick just one!"))
-                                                ; return $! Jud.Rule $2 [] $5 $8 } }
-            |   'rule' 'schema' IDENT 'for' 'all' 'object' Objects ':'
-                BEGIN_LAYOUT Formulas '---' IDENT Formula END_LAYOUT
+                                                ; return $! Jud.Rule $2 [] [] $5 $8 } }
+            |   'rule' 'schema' IDENT ForParams ':' BEGIN_LAYOUT Formulas '---' IDENT Formula END_LAYOUT
                                             {% do
-                                                { unless  ($3 == $12)
-                                                          (report'error ("A rule should have the same name as in declaration.\nThe rule `" ++ $3 ++ "' has also been given a name `" ++ $12 ++ "'.\nPick just one!"))
-                                                ; return $! Jud.Rule $3 $7 $10 $13 } }
+                                                { unless  ($3 == $9)
+                                                          (report'error ("A rule should have the same name as in declaration.\nThe rule `" ++ $3 ++ "' has also been given a name `" ++ $9 ++ "'.\nPick just one!"))
+                                                ; return $! Jud.Rule $3 (fst $4) (snd $4) $7 $10 } }
+
+
+ForParams   ::  { ([String], [(String, Type)]) }
+            :   'for' 'all' 'proposition' Props
+                                            { ($4, []) }
+            |   'for' 'all' 'object' Objects
+                                            { ([], $4) }
+            |   'for' 'all' 'proposition' Props 'for' 'all' 'object' Objects
+                                            { ($4, $8) }
+
+
+ForObjects  ::  { [(String, Type)] }
+            :   'for' 'all' 'object' Objects
+                                            { $4 }
+            |   {- empty -}                 { [] }
 
 
 Objects     ::  { [(String, Type)] }
@@ -301,18 +339,38 @@ Theorems    ::  { [Theorem] }
             :   Theorem Theorems            { $1 : $2 }
             |   {-  empty   -}              { [] }
 
-
+--  TODO: refactor so that it's a one production?
 Theorem     ::  { Theorem }
             :   'theorem' IDENT ':' Assumptions '⊢' Conclusion Proof
                                             { T.Theorem { T.name = $2
-                                                      , assumptions = $4
-                                                      , conclusion = $6
-                                                      , proof = $7 } }
+                                                        , prop'vars = []
+                                                        , assumptions = $4
+                                                        , conclusion = $6
+                                                        , proof = $7 } }
+            |   'theorem' 'schema' IDENT 'for' 'all' 'proposition' Props ':' Assumptions '⊢' Conclusion Proof
+                                            {% do
+                                                { s <- alexGetUserState
+                                                ; alexSetUserState s{ p'vars = [] }
+                                                ; return $! T.Theorem { T.name = $3
+                                                                      , prop'vars = $7
+                                                                      , assumptions = $9
+                                                                      , conclusion = $11
+                                                                      , proof = $12 } } }
             |   'theorem' IDENT ':' Formula Proof
                                             { T.Theorem { T.name = $2
-                                                      , assumptions = []
-                                                      , conclusion = $4
-                                                      , proof = $5 } }
+                                                        , prop'vars = []
+                                                        , assumptions = []
+                                                        , conclusion = $4
+                                                        , proof = $5 } }
+            |   'theorem' 'schema' IDENT 'for' 'all' 'proposition' Props ':' Formula Proof
+                                            {% do
+                                                { s <- alexGetUserState
+                                                ; alexSetUserState s{ p'vars = [] }
+                                                ; return $! T.Theorem { T.name = $3
+                                                                      , prop'vars = $7 
+                                                                      , assumptions = []
+                                                                      , conclusion = $9
+                                                                      , proof = $10 } } }
 
 
 Assumptions ::  { [Formula] }
@@ -382,14 +440,31 @@ QFormula    ::  { Formula }
 
 
 Relation    ::  { Relation }
-            :   PropVar TermArgsM           { case $2 of
-                                                    { Just terms -> Rel $1 terms
-                                                    ; Nothing -> Rel $1 [] } }
+            :   PropVar TermArgsM           {% do
+                                                { case $2 of
+                                                    { Just terms -> return (Rel $1 (RL'Terms terms))
+                                                    ; Nothing -> do
+                                                      { s <- alexGetUserState
+                                                      ; let p'vs = p'vars s
+                                                      ; if $1 `List.elem` p'vs
+                                                        then return (Meta'Rel (Prop'Var $1))
+                                                        else return (Rel $1 (RL'Terms [])) } } } }
+            |   PropVar FormArgs            { Rel $1 (RL'Formulae $2) }
             |   '_'                         {% do
                                                 { name <- fresh'name
                                                 ; return (Meta'Rel (Prop'Var name))  } }
 
             |   '_' PropVar                 { Meta'Rel (Prop'Var ('_' : $2)) }
+
+
+FormArgs    ::  { [Formula] }
+            :   '[' Formula ',' FormArgsAux ']'
+                                            { $2 : $4 }
+
+
+FormArgsAux ::  { [Formula] }
+            :   Formula                     { [$1] }
+            |   Formula ',' FormArgsAux     { $1 : $3 }
 
 
 PropVar     ::  { String }
@@ -401,7 +476,6 @@ PropVar     ::  { String }
 
 TermArgsM   ::  { Maybe [Term] }
             :   '(' TArgsSep ')'            { Just $2 }
-            |   '[' TArgsSep ']'            { Just $2 }
             |   '{' TArgsSep '}'            { Just $2 }
             |   {- empty  -}                { Nothing }
 
@@ -453,6 +527,7 @@ Proof       ::  { [Judgment] }
                                             -- ; $$.outScope = $1.outScope `union` $2.outScope }
             |   '_' PropVar ':=' Formula Proof
                                             { (JD.Alias ('_' : $2) $4) : $5 }
+            |   'prove' Formula Proof       { (JD.Prove $2) : $3 }
             |   {- empty -}                 { [] }
                                             -- ; $$.outScope = empty }
 

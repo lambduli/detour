@@ -1,0 +1,89 @@
+module Nat
+
+
+syntax ℕ  = Zero    --  Zero : ℕ
+          | Suc(ℕ)  --  Suc  : ℕ -> ℕ
+
+
+
+
+judgment sum = Sum(ℕ, ℕ, ℕ)
+
+rule schema sum-zero for all objects (n : ℕ) :
+|
+|-------------------------------------- sum-zero
+| Sum(Zero, n, n)
+
+
+rule schema sum-suc for all objects (m : ℕ), (n : ℕ), (o : ℕ) :
+| Sum(m, n, o)
+|-------------------------------------- sum-suc
+| Sum(Suc(m), n, Suc(o))
+
+
+
+
+--  second-order judgment
+
+judgment schema conjunction for all propositions A, B = CONJ[A, B]
+
+--  second-order rule schema
+
+rule schema conj-intro for all propositions A, B :
+| A
+| B
+|------------- conj-intro
+| CONJ[A, B]
+
+
+rule schema conj-elim-l for all propositions A, B :
+| CONJ[A, B]
+|--------------- conj-elim-l
+| A
+
+
+rule schema conj-elim-r for all propositions A, B :
+| CONJ[A, B]
+|--------------- conj-elim-r
+| B
+
+
+
+--  second-order theorem
+
+theorem schema modus-ponens for all propositions P, K : P ==> K
+                                                      , P
+                                                      ⊢ K
+
+| p->k : P ==> K
+| p : P
+|--------------------
+|
+| K  by rule ==>-elim on p->k, p
+
+
+
+--  now use the theorem
+
+theorem use-modus-ponens : A ==> B , A ⊢ B
+
+| a->b : A ==> B
+| a : A
+|-------------------
+|
+| B  by theorem modus-ponens on a->b, a
+
+
+
+--  parametric theorem using parametric rule
+
+theorem schema parametric for all propositions F, G, H  : F ==> G
+                                                        , CONJ[F, H]
+                                                        ⊢ G
+
+| f->g : F ==> G
+| f∧h : CONJ[F, H]
+|--------------------
+|
+| f : F  by rule conj-elim-l on f∧h
+| G  by theorem modus-ponens on f->g, f

@@ -3,7 +3,8 @@
 module Check.Assertion where
 
 
-import Control.Monad.Except ( throwError )
+-- import Control.Monad.Except ( throwError )
+import Control.Monad.InteractT
 
 import Syntax.Formula ( Formula(..) )
 import Syntax.Assumption ( Assumption )
@@ -19,7 +20,7 @@ data Assertion  = Assumed Formula
   deriving (Show, Eq)
 
 
-asserts'formula :: Assertion -> Check Formula
+asserts'formula :: Monad m => Assertion -> Check m Formula
 asserts'formula (Assumed fm) = return fm
 asserts'formula (Claimed fm) = return fm
 asserts'formula (Axiom fm) = return fm

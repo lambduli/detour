@@ -10,7 +10,7 @@ import Syntax.Type ( Type )
 
 
 class Unify a b where
-  unify :: a -> b -> Check ()
+  unify :: Monad m => a -> b -> Check m ()
 
 
 instance Unify Term Term

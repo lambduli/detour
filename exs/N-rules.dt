@@ -73,6 +73,7 @@ rule schema sum-suc for all objects (m : ℕ), (n : ℕ), (o : ℕ) :
 
 
 
+
 theorem custom-rules : ∀ (n : ℕ) : Sum( Zero , n , n )
 uni : | for any (n : ℕ)
       |-----------------------------------------------
@@ -136,7 +137,6 @@ Sum( Zero, Suc(Zero) , n )  by rule sum-zero
 
 
 
-
 theorem total : ∀ (n₁ : ℕ) (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( n₁ , n₂ , n₃ )
 ∀ (n₁ : ℕ) (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( n₁ , n₂ , n₃ )  by induction :
 
@@ -181,6 +181,59 @@ theorem total : ∀ (n₁ : ℕ) (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( n₁ , n
 
 
 
+-- theorem case-on-judgment : ∀ (m : ℕ) (n : ℕ) (o : ℕ) : Sum(Suc(m), n, Suc(o)) ==> Sum(m, n, o)
+-- 1 : | for any (m : ℕ)
+--     |----------------------------------------------------------------
+--     |
+--     | 2 : | for any (n : ℕ)
+--     |     |----------------------------------------------------------
+--     |     |
+--     |     | 3 : | for any (o : ℕ)
+--     |     |     |----------------------------------------------------
+--     |     |     |
+--     |     |     | 4 : | d1 : Sum(Suc(m), n, Suc(o))
+--     |     |     |     |----------------------------------------------
+--     |     |     |     |
+--     |     |     |     | Sum(m, n, o)  by case analysis on judgment d1 :
+--     |     |     |     |
+--     |     |     |     |                   case rule | get : Sum(M, N, O)
+--     |     |     |     |                             |------------------------- sum-suc
+--     |     |     |     |                             | have : Sum(Suc(N), N, Suc(O))
+--     |     |     |     |
+--     |     |     |     |
+--     |     |     |     |
+--     |     |     |     |
+--     |     |     |     |
+-- 
+-- 
+-- 
+
+-- assume d1 : Sum( Suc(Suc(Zero)) , n , Suc(m) )
+-- 
+-- I do case analysis on it and have this case:
+-- 
+-- | get : Sum( Suc(Zero) , N , M )
+-- |--------------------------------------------- sum-suc
+-- | have : Sum( Suc(Suc(Zero)) , N , Suc(M) )
+-- 
+-- 
+-- When I unify "have" with d1 I get this substitution:
+-- n -> N
+-- m -> M
+
+
+
+
+
+
+
+
+
+-- | Sum(m, n, o)
+-- |-------------------------------------- sum-suc
+-- | Sum(Suc(m), n, Suc(o))
+
+
 -- judgment schema conj for all propositions A, B = AND(A, B)
 --
 -- rule schema and-intro for all propositions A, B : | A
@@ -217,7 +270,7 @@ theorem total : ∀ (n₁ : ℕ) (n₂ : ℕ) : ∃ (n₃ : ℕ) : Sum( n₁ , n
 -- -> even-s na n3''
 -- 
 -- -- hotovo
-
+-- 
 
 theorem what-even : ⊤
 1 : | for any (n : ℕ)
