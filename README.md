@@ -4,7 +4,7 @@ A toy proof-checker for first-order predicate logic natural deduction with Fitch
 
 It is still in the stage of prototyping.
 
-It supports exactly first-order predicate logic with custom definitions for terms and propositions.
+It somewhat supports a mix of a subset of second-order propositional and first-order predicate logic with custom definitions for terms and propositions.
 
 ## Syntax
 
